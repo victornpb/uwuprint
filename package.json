@@ -7,5 +7,12 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Victornpb",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@abandonware/noble": "^1.9.2-23",
+    "commander": "^12.1.0",
+    "jimp": "^1.6.0",
+    "node-poppler": "^7.2.2",
+    "sharp": "^0.33.5"
+  }
 }
