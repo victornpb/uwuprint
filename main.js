@@ -300,26 +300,33 @@ async function pdfToImages(pdfPath, outputDir) {
     }
 }
 
-async function preprocessAndDither(inputPath, outputPath, trim = DEFAULT_TRIM) {
+
+
+
+async function preprocessAndDither(inputPath, outputPath, trim = DEFAULT_TRIM, autoRotate = true) {
     try {
         const metadata = await sharp(inputPath).metadata();
         let image = sharp(inputPath);
 
+        // Trim empty margins
         if (trim) {
             image = image.trim();
         }
 
-        if (metadata.width > DEFAULT_PRINT_WIDTH && metadata.width > metadata.height) {
+        // Auto rotate
+        if (autoRotate && metadata.width > DEFAULT_PRINT_WIDTH && metadata.width > metadata.height) {
             image = image.rotate(90);
         }
 
         const { data, info } = await image
+            // fit to width
             .resize({
                 width: DEFAULT_PRINT_WIDTH,
                 height: null,
                 fit: sharp.fit.inside,
                 withoutEnlargement: true,
             })
+            // padding if image is smaller than page
             .extend({
                 top: 0,
                 bottom: 0,
@@ -334,8 +341,9 @@ async function preprocessAndDither(inputPath, outputPath, trim = DEFAULT_TRIM) {
         const width = info.width;
         const height = info.height;
         const ditheredData = Buffer.from(data);
-        const whiteMask = new Uint8Array(data.length);
 
+        // Masking dittering artifacts on white backgrounds
+        const whiteMask = new Uint8Array(data.length);
         for (let i = 0; i < data.length; i++) {
             whiteMask[i] = data[i] > 240 ? 1 : 0;
             if (whiteMask[i]) {
@@ -439,17 +447,17 @@ async function runBLE() {
             });
         });
 
-        setInterval(async () => {
-            let r;
-            r = await characteristic.writeAsync(MSG_GET_DEV_STATE(), true);
-            await delay(500);
-            r = await characteristic.writeAsync(MSG_GET_DEV_STATE(), false);
-            await delay(500);
-            r = await characteristic.writeAsync(MSG_GET_DEV_INFO(), true);
-            await delay(500);
-            r = await characteristic.writeAsync(MSG_GET_DEV_INFO(), false);
-            await delay(500);
-        }, 5000);
+        // setInterval(async () => {
+        //     let r;
+        //     r = await characteristic.writeAsync(MSG_GET_DEV_STATE(), true);
+        //     await delay(500);
+        //     r = await characteristic.writeAsync(MSG_GET_DEV_STATE(), false);
+        //     await delay(500);
+        //     r = await characteristic.writeAsync(MSG_GET_DEV_INFO(), true);
+        //     await delay(500);
+        //     r = await characteristic.writeAsync(MSG_GET_DEV_INFO(), false);
+        //     await delay(500);
+        // }, 5000);
 
         return async function send(data) {
             console.log(`⏳ Sending ${data.length} bytes of data in chunks of ${chunkSize} bytes...`);
@@ -508,9 +516,10 @@ async function main() {
         .option('-t, --trim', 'Enable trimming of images', DEFAULT_TRIM)
         .option('-w, --width <width>', 'Set print width', DEFAULT_PRINT_WIDTH)
         .option('-b, --img-binarization-algo <algo>', 'Image binarization algorithm', 'floyd-steinberg')
+        .option('-d, --dry', 'Dry run: do everything but print', false)
         .action(async (input, options) => {
             
-            const { preview, trim, width, imgBinarizationAlgo } = options;
+            const { preview, trim, width, imgBinarizationAlgo, dry } = options;
             const outputDir = path.join(__dirname, 'output');
             if (!fs.existsSync(outputDir)) {
                 fs.mkdirSync(outputDir);
@@ -519,20 +528,22 @@ async function main() {
             let images = [];
             if (input.toLowerCase().endsWith('.pdf')) {
                 await pdfToImages(input, outputDir);
-                images = fs.readdirSync(outputDir).map(file => path.join(outputDir, file));
+                images = fs.readdirSync(outputDir)
+                    .filter(file => file.startsWith('page-') && file.endsWith('.png'))
+                    .map(file => path.join(outputDir, file));
             } else {
                 images = [input];
             }
 
             for (const image of images) {
-                const outputPath = path.join(outputDir, path.basename(image));
+                const outputPath = path.join(outputDir, `processed_${path.basename(image)}`);
                 await preprocessAndDither(image, outputPath, trim);
 
                 if (preview) {
                     console.log(`Preview available at ${outputPath}`);
                 }
 
-                // Read and print the processed image
+                // Read and process the image
                 const img = await Jimp.read(outputPath);
                 const binarizedImg = [];
                 img.scan(0, 0, img.bitmap.width, img.bitmap.height, function (x, y, idx) {
@@ -544,20 +555,26 @@ async function main() {
                 });
 
                 const data = msgsPrintImg(binarizedImg, true, 0xfff * 0);
-                const send = await runBLE();
+                
+                if (!dry) {
+                    const send = await runBLE();
 
-                const power = 0.6;
-                const printData = msgsPrintImg(binarizedImg, false, 0xffff * power | 0);
-                await send(printData);
-                await delay(2000);
+                    const power = 0.6;
+                    const printData = msgsPrintImg(binarizedImg, false, 0xffff * power | 0);
+                    await send(printData);
+                    await delay(2000);
 
-                await send(msgFeedPaper(55));
+                    await send(msgFeedPaper(55));
+                } else {
+                    console.log(`Dry run: Skipping printing process for ${path.basename(image)}`);
+                }
             }
+
+            process.exit(0);
         });
 
     program.parse(process.argv);
 }
 
 main();
-
 
