@@ -117,6 +117,15 @@ let disconnectTimer;
 const selected = computed(() =>
   images.value.find((image) => image.id === selectedId.value),
 );
+const queueItems = computed(() =>
+  images.value.flatMap((image, imageIndex) =>
+    Array.from({ length: Math.max(1, Math.min(99, Number(image.copies) || 1)) }, (_, copyIndex) => ({
+      image,
+      imageIndex,
+      copyIndex,
+    })),
+  ),
+);
 const supportedDevices = computed(() =>
   devices.value.filter((device) => device.supported),
 );
@@ -219,6 +228,7 @@ function addImages(paths) {
         height: 0,
         processing: true,
         error: null,
+        copies: 1,
       };
       images.value.push(image);
       added.push(image);
@@ -464,15 +474,16 @@ async function printAll() {
   await printQueueItem();
 }
 async function printQueueItem() {
-  if (!images.value[queueIndex.value]) return;
-  selectedId.value = images.value[queueIndex.value].id;
+  const item = queueItems.value[queueIndex.value];
+  if (!item) return;
+  selectedId.value = item.image.id;
   await nextTick();
   postFeedForPrint.value =
     queueOptions.value.feedBetween &&
-    queueIndex.value < images.value.length - 1;
+    queueIndex.value < queueItems.value.length - 1;
   const didPrint = await printSelected();
   if (!didPrint) return;
-  if (queueIndex.value < images.value.length - 1) {
+  if (queueIndex.value < queueItems.value.length - 1) {
     if (queueOptions.value.pause) openContinue();
     else {
       queueIndex.value++;
@@ -764,28 +775,29 @@ onBeforeUnmount(() => {
         </div>
         <div class="image-list">
           <article
-            v-for="(image, index) in images"
-            :key="image.id"
-            :class="['image-item', { selected: image.id === selectedId }]"
-            @click="selectedId = image.id"
+            v-for="(item, index) in queueItems"
+            :key="`${item.image.id}-${item.copyIndex}`"
+            :data-image-id="item.image.id"
+            :class="['image-item', { selected: item.image.id === selectedId }]"
+            @click="selectedId = item.image.id"
           >
-            <img v-if="image.preview" :src="image.preview" alt="" />
+            <img v-if="item.image.preview" :src="item.image.preview" alt="" />
             <div>
-              <strong>{{ image.name }}</strong
+              <strong>{{ item.image.name }}</strong
               ><small
                 >{{
-                  image.width
-                    ? `${image.width} × ${image.height}`
-                    : image.error ||
-                      (image.processing ? "Processing…" : "Not rendered")
+                  item.image.width
+                    ? `${item.image.width} × ${item.image.height}`
+                    : item.image.error ||
+                      (item.image.processing ? "Processing…" : "Not rendered")
                 }}
-                · #{{ index + 1 }}</small
+                · Copy {{ item.copyIndex + 1 }} of {{ item.image.copies || 1 }} · #{{ index + 1 }}</small
               >
             </div>
             <button
               class="remove"
               title="Remove image"
-              @click.stop="removeImage(image.id)"
+              @click.stop="removeImage(item.image.id)"
             >
               ×
             </button>
@@ -866,6 +878,14 @@ onBeforeUnmount(() => {
           <div class="controls-heading"><strong>Print margins</strong><small>{{ preferences.printer.marginUnits }}</small></div>
           <label><span><input v-model="preferences.printer.marginTopEnabled" type="checkbox" /> Top</span><span class="margin-input"><input :value="marginDisplay('marginTop')" @input="setMargin('marginTop', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></span></label>
           <label><span><input v-model="preferences.printer.marginBottomEnabled" type="checkbox" /> Bottom</span><span class="margin-input"><input :value="marginDisplay('marginBottom')" @input="setMargin('marginBottom', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></span></label>
+        </div>
+        <div class="copies-control">
+          <div class="controls-heading"><strong>Copies</strong><small>Printed as queue items</small></div>
+          <div class="copies-stepper">
+            <button class="secondary" @click="selected.copies = Math.max(1, (selected.copies || 1) - 1)">−</button>
+            <input v-model.number="selected.copies" @change="selected.copies = Math.max(1, Math.min(99, Number(selected.copies) || 1))" type="number" min="1" max="99" />
+            <button class="secondary" @click="selected.copies = Math.min(99, (selected.copies || 1) + 1)">+</button>
+          </div>
         </div><button
           class="print"
           :disabled="processing || printing"
@@ -1232,7 +1252,7 @@ onBeforeUnmount(() => {
       <section class="modal print-dialog">
         <h2>Ready for the next image?</h2>
         <p>
-          Printed {{ queueIndex + 1 }} of {{ images.length }}.
+          Printed {{ queueIndex + 1 }} of {{ queueItems.length }}.
           <span v-if="countdown && !countdownPaused"
             >Continuing in {{ countdown }} seconds.</span
           >
@@ -1242,9 +1262,9 @@ onBeforeUnmount(() => {
           <span v-else>Press Enter or Space to continue.</span>
         </p>
         <img
-          v-if="images[queueIndex + 1]?.preview"
+          v-if="queueItems[queueIndex + 1]?.image.preview"
           class="next-preview"
-          :src="images[queueIndex + 1].preview"
+          :src="queueItems[queueIndex + 1].image.preview"
           alt="Next image preview"
         />
         <div class="job-motion">

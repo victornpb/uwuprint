@@ -459,6 +459,31 @@ button.clear-link:hover {
 .main-margin-controls label input[type="number"] {
   width: 72px;
 }
+.copies-control {
+  margin: 12px 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--sys-border);
+}
+.copies-control .controls-heading {
+  margin-bottom: 8px;
+}
+.copies-control .controls-heading small {
+  color: var(--sys-text-secondary);
+  font-weight: 400;
+}
+.copies-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.copies-stepper input {
+  width: 64px;
+  text-align: center;
+}
+.copies-stepper button {
+  min-width: 30px;
+  padding: 5px 8px;
+}
 .margin-input {
   display: inline-flex;
   align-items: center;
