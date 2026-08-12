@@ -5,7 +5,6 @@ const { Poppler } = require('node-poppler');
 const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
-const Jimp = require('jimp').Jimp;
 const noble = require('@abandonware/noble');
 
 // Constants
@@ -13,7 +12,6 @@ const DEFAULT_PRINT_WIDTH = 384;
 
 const DEFAULT_TRIM = false;
 const POPPLER_BIN_PATH = '/Users/victor/homebrew/bin';
-
 
 
 // ED:07:03:13:33:E6
@@ -36,8 +34,6 @@ const status = {
     overtemp: false,
     lowBattery: false,
 };
-
-const TX_CHARACTERISTIC_UUID = '0000ae01-0000-1000-8000-00805f9b34fb';
 
 const XOff = [0x51, 0x78, 0xAE, 0x01, 0x01, 0x00, 0x10, 0x70, 0xFF];
 const XOn = [0x51, 0x78, 0xAE, 0x01, 0x01, 0x00, 0x00, 0x00, 0xFF];
@@ -143,35 +139,6 @@ function msgPrintRow(bitArray) {
     const byteEncodedRow = byteEncode(bitArray);
     return formatMessage(0xA2, byteEncodedRow);
 }
-
-function msgsPrintImg(pixelBitMatrix, textMode = true, strength = 0x9000) {
-    const PRINTER_MODE = textMode ? MSG_PRINT_TEXT() : MSG_PRINT_IMG();
-
-    const data = [];
-
-    data.push(
-        MSG_GET_DEV_STATE(),
-        PRINTER_MODE,
-        MSG_SET_QUALITY_200_DPI(),
-        msgSetEnergy(strength),
-    );
-
-    // image
-    data.push(MSG_LATTICE_START());
-    pixelBitMatrix.forEach(row => {
-        data.push(msgPrintRow(row));
-    });
-    data.push(MSG_LATTICE_END());
-
-    data.push(
-        msgFeedPaper(10),
-        MSG_GET_DEV_STATE()
-    );
-
-    return Buffer.concat(data);
-}
-
-
 
 /**
  * Encodes a run of repeated values using run-length encoding.
@@ -431,7 +398,6 @@ async function runBLE() {
         console.log('Connected!');
 
         const { characteristics } = await peripheral.discoverAllServicesAndCharacteristicsAsync([], []);
-        // const characteristic = characteristics.find(char => char.uuid === TX_CHARACTERISTIC_UUID);
         const characteristic = characteristics[0];
         const chunkSize = (characteristic.mtu || 248) - 3;
 
@@ -477,8 +443,8 @@ async function runBLE() {
     }
 }
 
-function msgsPrintImg(pixelBitMatrix, textMode = true, strength = 0x9000) {
-    const PRINTER_MODE = textMode ? MSG_PRINT_IMG() : MSG_PRINT_IMG();
+function msgsPrintImg(pixelBitMatrix, textMode = false, strength = 0x9000) {
+    const PRINTER_MODE = textMode ? MSG_PRINT_TEXT() : MSG_PRINT_IMG();
 
     const data = [];
 
@@ -543,16 +509,27 @@ async function main() {
                     console.log(`Preview available at ${outputPath}`);
                 }
 
-                // Read and process the image
-                const img = await Jimp.read(outputPath);
+                // Binarize image using Sharp (no Jimp)
+                const { data: imgBuffer, info } = await sharp(outputPath)
+                    .greyscale()
+                    .raw()
+                    .toBuffer({ resolveWithObject: true });
+                const { width, height } = info;
                 const binarizedImg = [];
-                img.scan(0, 0, img.bitmap.width, img.bitmap.height, function (x, y, idx) {
-                    const color = this.bitmap.data[idx] > 127 ? 0 : 1;
-                    if (!binarizedImg[y]) {
-                        binarizedImg[y] = [];
+
+                for (let y = 0; y < height; y++) {
+                    const row = [];
+                    for (let x = 0; x < width; x++) {
+                        const idx = y * width + x;
+                        // In the MX06 protocol, a 1 bit activates (burns) a dot.
+                        row.push(imgBuffer[idx] < 128 ? 1 : 0);
                     }
-                    binarizedImg[y][x] = color;
-                });
+                    binarizedImg.push(row);
+                }
+
+                // The X6/MX06 firmware expects a blank first scanline; without it,
+                // some units introduce artifacts at the beginning of a print.
+                binarizedImg.unshift(new Array(width).fill(0));
 
                 const data = msgsPrintImg(binarizedImg, true, 0xfff * 0);
                 
@@ -577,4 +554,3 @@ async function main() {
 }
 
 main();
-

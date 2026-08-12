@@ -13,7 +13,7 @@
             ],
             "program": "${workspaceFolder}/main.js",
             "cwd": "${workspaceFolder}",
-            "args": ["img.jpg"]
+            "args": ["img.jpg", "--dry"]
         }
     ]
 }
