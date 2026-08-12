@@ -38,6 +38,10 @@ let mainWindow;
 let pendingOpenImages = collectImagePaths(process.argv);
 let rendererReady = false;
 let bluetoothSelection;
+let rememberedSelectionNames = [];
+let rememberedSelectionTimeoutMs = 15_000;
+let rememberedSelectionTimer;
+let printerDiscoveryActive = false;
 let printerMenuState = { connected: false, printing: false, hasImages: false };
 const SUPPORTED_PRINTER_NAMES = new Set([
   "_ZZ00",
@@ -51,6 +55,13 @@ const SUPPORTED_PRINTER_NAMES = new Set([
   "MX09",
   "YT01",
 ]);
+
+function normalizedPrinterName(name) {
+  return String(name || "")
+    .replace(/\s*\([^)]*\)\s*$/, "")
+    .trim()
+    .toUpperCase();
+}
 
 function collectImagePaths(values) {
   return values.filter(
@@ -211,8 +222,8 @@ function updatePrinterMenu() {
   menu.getMenuItemById("printer-disconnect").enabled = connected;
   for (const id of ["printer-refresh", "printer-feed", "printer-retract"])
     menu.getMenuItemById(id).enabled = canControl;
-  menu.getMenuItemById("printer-print").enabled = canControl && hasImages;
-  menu.getMenuItemById("printer-print-all").enabled = canControl && hasImages;
+  menu.getMenuItemById("printer-print").enabled = !printing && hasImages;
+  menu.getMenuItemById("printer-print-all").enabled = !printing && hasImages;
 }
 
 function createWindow() {
@@ -236,20 +247,42 @@ function createWindow() {
       bluetoothSelection = callback;
       const uniqueDevices = new Map();
       for (const device of devices) {
-        const supported = SUPPORTED_PRINTER_NAMES.has(device.deviceName);
+        const printerName = normalizedPrinterName(device.deviceName);
+        const supported = SUPPORTED_PRINTER_NAMES.has(printerName);
         // macOS can advertise the same low-cost printer under rotating BLE IDs.
         // Collapse only supported models by name, preserving other nearby devices.
         const key = supported
-          ? `printer:${device.deviceName}`
+          ? `printer:${printerName}`
           : `device:${device.deviceId}`;
         uniqueDevices.set(key, device);
+      }
+      const remembered = [...uniqueDevices.values()].find((device) =>
+        rememberedSelectionNames.includes(normalizedPrinterName(device.deviceName)),
+      );
+      if (remembered) {
+        clearTimeout(rememberedSelectionTimer);
+        rememberedSelectionNames = [];
+        printerDiscoveryActive = false;
+        bluetoothSelection = null;
+        callback(remembered.deviceId); return;
+      }
+      if (printerDiscoveryActive) {
+        clearTimeout(rememberedSelectionTimer);
+        rememberedSelectionTimer = setTimeout(() => {
+          rememberedSelectionNames = [];
+          printerDiscoveryActive = false;
+          if (!mainWindow?.isDestroyed())
+            mainWindow.webContents.send("printer-discovery-timeout");
+        }, rememberedSelectionTimeoutMs);
       }
       mainWindow.webContents.send(
         "bluetooth-devices",
         [...uniqueDevices.values()].map((device) => ({
           id: device.deviceId,
-          name: device.deviceName || "Unnamed BLE device",
-          supported: SUPPORTED_PRINTER_NAMES.has(device.deviceName),
+          name: normalizedPrinterName(device.deviceName) || "Unnamed BLE device",
+          supported: SUPPORTED_PRINTER_NAMES.has(
+            normalizedPrinterName(device.deviceName),
+          ),
         })),
       );
     },
@@ -494,13 +527,35 @@ ipcMain.handle("render-image", async (_event, inputPath, options) => {
 });
 
 ipcMain.handle("select-bluetooth-device", (_event, deviceId) => {
+  clearTimeout(rememberedSelectionTimer); rememberedSelectionNames = []; printerDiscoveryActive = false;
   if (bluetoothSelection) bluetoothSelection(deviceId);
   bluetoothSelection = null;
 });
 
 ipcMain.handle("cancel-bluetooth-selection", () => {
+  clearTimeout(rememberedSelectionTimer); rememberedSelectionNames = []; printerDiscoveryActive = false;
   if (bluetoothSelection) bluetoothSelection("");
   bluetoothSelection = null;
+});
+function preparePrinterDiscovery(names, timeoutSeconds) {
+  // Print scans every model we support. Remembered devices still populate the
+  // settings list, but macOS rotates BLE identifiers so a model match is the
+  // only stable identifier available to discovery.
+  rememberedSelectionNames = [
+    ...SUPPORTED_PRINTER_NAMES,
+    ...(Array.isArray(names) ? names : [names]).map(normalizedPrinterName),
+  ];
+  clearTimeout(rememberedSelectionTimer);
+  rememberedSelectionTimeoutMs = Math.max(1, Number(timeoutSeconds) || 15) * 1000;
+  printerDiscoveryActive = true;
+}
+
+ipcMain.on("prepare-printer-discovery", (event, names, timeoutSeconds) => {
+  preparePrinterDiscovery(names, timeoutSeconds);
+  event.returnValue = true;
+});
+ipcMain.handle("select-remembered-printer", (_event, names, timeoutSeconds) => {
+  preparePrinterDiscovery(names, timeoutSeconds);
 });
 
 ipcMain.handle("show-notification", (_event, { title, body }) => {

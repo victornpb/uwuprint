@@ -17,8 +17,12 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.on("menu-action", (_event, action) => callback(action)),
   onBluetoothDevices: (callback) =>
     ipcRenderer.on("bluetooth-devices", (_event, devices) => callback(devices)),
+  onPrinterDiscoveryTimeout: (callback) =>
+    ipcRenderer.on("printer-discovery-timeout", () => callback()),
   selectBluetoothDevice: (deviceId) =>
     ipcRenderer.invoke("select-bluetooth-device", deviceId),
+  preparePrinterDiscovery: (names, timeout) =>
+    ipcRenderer.sendSync("prepare-printer-discovery", names, timeout),
   cancelBluetoothSelection: () =>
     ipcRenderer.invoke("cancel-bluetooth-selection"),
   showNotification: (notification) =>

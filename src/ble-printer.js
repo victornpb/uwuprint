@@ -16,9 +16,8 @@ const delay = (milliseconds) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export class BlePrinter {
-  constructor(onStatus, shouldReconnect, onProgress = () => {}) {
+  constructor(onStatus, onProgress = () => {}) {
     this.onStatus = onStatus;
-    this.shouldReconnect = shouldReconnect;
     this.onProgress = onProgress;
     this.device = null;
     this.writeCharacteristic = null;
@@ -50,29 +49,10 @@ export class BlePrinter {
     await this.connectDevice();
   }
 
-  async reconnectKnown(deviceName, force = false) {
-    if ((!force && !this.shouldReconnect()) || !navigator.bluetooth.getDevices)
-      throw new Error(
-        "Automatic reconnect is not available in this Electron session. Connect once from the device list.",
-      );
-    this.update({
-      connected: false,
-      message: `Auto-connecting to ${deviceName}…`,
-    });
-    const devices = await navigator.bluetooth.getDevices();
-    const device = devices.find((candidate) => candidate.name === deviceName);
-    if (!device) {
-      this.update({
-        message: "Auto-connect needs one manual connection first.",
-      });
-      return;
-    }
-    this.manualDisconnect = false;
-    this.device = device;
-    this.device.addEventListener("gattserverdisconnected", () =>
-      this.handleDisconnect(),
-    );
-    await this.connectDevice();
+  async connectRemembered(deviceNames, timeoutSeconds) {
+    // Keep this synchronous: requestDevice must run in the original Print click.
+    window.desktop.preparePrinterDiscovery([...deviceNames], timeoutSeconds);
+    await this.connect();
   }
 
   async connectDevice() {
@@ -110,16 +90,6 @@ export class BlePrinter {
       message: wasManual ? "Disconnected" : "Lost connection",
       busy: false,
     });
-    if (!wasManual && this.shouldReconnect()) {
-      this.update({ message: "Lost connection — reconnecting…" });
-      setTimeout(
-        () =>
-          this.connectDevice().catch(() =>
-            this.update({ message: "Reconnect failed; retry from Connect." }),
-          ),
-        1500,
-      );
-    }
   }
 
   update(changes) {

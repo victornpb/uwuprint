@@ -29,13 +29,22 @@ const showPicker = ref(false);
 const showPreferences = ref(false);
 const activePreferenceTab = ref("printer");
 const showOtherDevices = ref(false);
+let resumeAfterConnect = null;
+const connecting = ref(false);
+function normalizedPrinterName(name) {
+  return String(name || "")
+    .replace(/\s*\([^)]*\)\s*$/, "")
+    .trim()
+    .toUpperCase();
+}
+const rememberedDevices = ref(
+  [...new Set(JSON.parse(localStorage.getItem("uwuprint-remembered-devices") || "[]").map(normalizedPrinterName).filter(Boolean))],
+);
 const devices = ref([]);
 const preferences = ref(
   JSON.parse(
     localStorage.getItem("uwuprint-preferences") ||
       JSON.stringify({
-        autoConnect: false,
-        autoConnectOnStartup: true,
         printer: {
           energy: 39321,
           quality: 5,
@@ -43,7 +52,7 @@ const preferences = ref(
           postFeed: 55,
           manualFeed: 20,
         },
-        advanced: { chunkDelay: 20, disconnectAfter: 300 },
+        advanced: { chunkDelay: 20, disconnectAfter: 300, connectTimeout: 15 },
         queue: { cancelCountdownOnMouseMove: true },
         notifications: {
           enabled: true,
@@ -66,15 +75,13 @@ preferences.value.printer = {
 };
 preferences.value.advanced = {
   chunkDelay: 20,
-  disconnectAfter: 300,
+  disconnectAfter: 300, connectTimeout: 15,
   ...(preferences.value.advanced || {}),
 };
 preferences.value.queue = {
   cancelCountdownOnMouseMove: true,
   ...(preferences.value.queue || {}),
 };
-if (typeof preferences.value.autoConnectOnStartup !== "boolean")
-  preferences.value.autoConnectOnStartup = true;
 if (preferences.value.printer.quality === 0)
   preferences.value.printer.quality = 5;
 const printerStatus = ref({
@@ -89,7 +96,6 @@ const printerStatus = ref({
 });
 const printer = new BlePrinter(
   updatePrinterStatus,
-  () => preferences.value.autoConnect,
   (progress) => {
     printProgress.value = progress;
   },
@@ -116,6 +122,12 @@ function defaults() {
     crop: { left: 0, top: 0, width: 0, height: 0 },
   };
 }
+function isRemembered(name) { return rememberedDevices.value.includes(normalizedPrinterName(name)); }
+function setRemembered(name, remember) {
+  const normalizedName = normalizedPrinterName(name);
+  rememberedDevices.value = remember ? [...new Set([...rememberedDevices.value, normalizedName])] : rememberedDevices.value.filter((item) => item !== normalizedName);
+  localStorage.setItem("uwuprint-remembered-devices", JSON.stringify(rememberedDevices.value));
+}
 function savePreferences() {
   localStorage.setItem(
     "uwuprint-preferences",
@@ -133,8 +145,6 @@ function maybeNotify(event, title, body) {
 function updatePrinterStatus(next) {
   const previous = printerStatus.value;
   printerStatus.value = next;
-  if (next.connected && next.deviceName)
-    localStorage.setItem("uwuprint-preferred-printer", next.deviceName);
   if (next.battery === "Low" && previous.battery !== "Low")
     maybeNotify(
       "lowBattery",
@@ -309,15 +319,26 @@ function decodePixels(base64) {
   return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
 }
 async function openPicker() {
+  if (printerStatus.value.connected) {
+    showPicker.value = true;
+    return;
+  }
   devices.value = [];
   showOtherDevices.value = false;
   showPicker.value = true;
   try {
     await printer.connect();
     showPicker.value = false;
+    const resume = resumeAfterConnect;
+    resumeAfterConnect = null;
+    await resume?.();
   } catch (error) {
-    if (error.name !== "NotFoundError")
-      printerStatus.value = { ...printerStatus.value, message: error.message };
+    resumeAfterConnect = null;
+    printerStatus.value = {
+      ...printerStatus.value,
+      connected: false,
+      message: error.name === "NotFoundError" ? "Disconnected" : error.message,
+    };
   }
 }
 async function selectDevice(device) {
@@ -330,9 +351,41 @@ async function selectDevice(device) {
 }
 async function closePicker() {
   await window.desktop.cancelBluetoothSelection();
+  resumeAfterConnect = null;
   showPicker.value = false;
+  printerStatus.value = {
+    ...printerStatus.value,
+    connected: false,
+    message: "Disconnected",
+  };
+}
+async function connectThen(action) {
+  resumeAfterConnect = action;
+  connecting.value = true;
+  try {
+    await printer.connectRemembered(rememberedDevices.value, preferences.value.advanced.connectTimeout);
+    const resume = resumeAfterConnect;
+    resumeAfterConnect = null;
+    connecting.value = false;
+    await resume?.();
+  } catch (error) {
+    // A cancellation is handled by closePicker. Do not create a second BLE request.
+    if (resumeAfterConnect && !showPicker.value)
+      printerStatus.value = {
+        ...printerStatus.value,
+        message: error.name === "NotFoundError" ? "Printer discovery was cancelled" : error.message,
+      };
+  } finally {
+    connecting.value = false;
+  }
+}
+function printFromMenu(action) {
+  if (printerStatus.value.connected) return action();
+  resumeAfterConnect = action;
+  return openPicker();
 }
 async function printSelected() {
+  if (!printerStatus.value.connected) return connectThen(() => printSelected());
   if (!selected.value?.pixels) await renderSelected();
   if (!selected.value?.pixels) return false;
   printing.value = true;
@@ -364,6 +417,7 @@ async function printSelected() {
   }
 }
 async function printAll() {
+  if (!printerStatus.value.connected) return connectThen(() => printAll());
   queueIndex.value = 0;
   await printQueueItem();
 }
@@ -563,8 +617,8 @@ onMounted(() => {
       "refresh-status": refreshStatus,
       "feed-paper": feedPaper,
       "retract-paper": retractPaper,
-      "print-image": printSelected,
-      "print-all": printAll,
+      "print-image": () => printFromMenu(printSelected),
+      "print-all": () => printFromMenu(printAll),
       preferences: () => {
         showPreferences.value = true;
         activePreferenceTab.value = "printer";
@@ -575,11 +629,14 @@ onMounted(() => {
   window.desktop.onBluetoothDevices((list) => {
     devices.value = list;
   });
-  const preferredPrinter = localStorage.getItem("uwuprint-preferred-printer");
-  if (preferences.value.autoConnectOnStartup && preferredPrinter)
-    printer.reconnectKnown(preferredPrinter, true).catch((error) => {
-      printerStatus.value = { ...printerStatus.value, message: error.message };
-    });
+  window.desktop.onPrinterDiscoveryTimeout(() => {
+    connecting.value = false;
+    showPicker.value = true;
+    printerStatus.value = {
+      ...printerStatus.value,
+      message: "No remembered printer found. Choose a printer to continue…",
+    };
+  });
   window.addEventListener("keydown", onContinueKey);
   window.addEventListener("mousemove", handleCountdownMouseMove);
 });
@@ -604,13 +661,16 @@ onBeforeUnmount(() => {
         <p>{{ appInfo.tagline }}</p>
       </div>
       <div class="connection">
-        <span :class="['dot', { connected: printerStatus.connected }]" />{{
-          printerStatus.message
-        }}<button v-if="!printerStatus.connected" @click="openPicker">
-          Connect</button
-        ><button v-else class="secondary" @click="disconnectPrinter">
-          Disconnect</button
-        ><button
+        <button class="connection-badge" @click="openPicker">
+          <span :class="['dot', { connected: printerStatus.connected }]" />
+          {{
+            printerStatus.connected
+              ? printerStatus.deviceName || "Connected"
+              : "No printer"
+          }}
+          <span class="connection-chevron">⌄</span>
+        </button>
+        <button
           class="icon-button"
           title="Preferences"
           @click="
@@ -711,15 +771,7 @@ onBeforeUnmount(() => {
             >
               ⚙
             </button></label
-          ><button
-            :disabled="!printerStatus.connected || printing"
-            :title="
-              !printerStatus.connected ? 'Connect a printer to print' : ''
-            "
-            @click="printAll"
-          >
-            Print all
-          </button>
+          ><button :disabled="printing" @click="printAll">Print all</button>
         </div>
       </aside>
       <section class="workspace">
@@ -787,8 +839,7 @@ onBeforeUnmount(() => {
           </button></label
         ><button
           class="print"
-          :disabled="!printerStatus.connected || processing || printing"
-          :title="!printerStatus.connected ? 'Connect a printer to print' : ''"
+          :disabled="processing || printing"
           @click="printSelected"
         >
           Print image
@@ -800,7 +851,9 @@ onBeforeUnmount(() => {
       </aside>
     </section>
     <section class="status-strip">
-      <span><b>Paper</b>{{ printerStatus.paper }}</span
+      <span class="status-message"
+        ><b>Status</b>{{ printerStatus.message }}</span
+      ><span><b>Paper</b>{{ printerStatus.paper }}</span
       ><span><b>Lid</b>{{ printerStatus.lid }}</span
       ><span><b>Temperature</b>{{ printerStatus.temperature }}</span
       ><span><b>Battery</b>{{ printerStatus.battery }}</span
@@ -813,6 +866,13 @@ onBeforeUnmount(() => {
         Refresh status
       </button>
     </section>
+    <div v-if="connecting" class="modal-backdrop">
+      <section class="modal connecting-modal">
+        <i class="spinner" />
+        <h2>Searching for a printer…</h2>
+        <p>Scanning nearby supported printers before opening the device list.</p>
+      </section>
+    </div>
     <div v-if="showPicker" class="modal-backdrop" @click.self="closePicker">
       <section class="modal">
         <div class="modal-header">
@@ -822,10 +882,16 @@ onBeforeUnmount(() => {
           </div>
           <button class="icon-button" @click="closePicker">×</button>
         </div>
-        <label class="auto-connect"
-          ><input v-model="preferences.autoConnect" type="checkbox" />
-          Automatically reconnect to this printer</label
+        <button
+          v-if="printerStatus.connected"
+          class="secondary picker-disconnect"
+          @click="
+            disconnectPrinter();
+            showPicker = false;
+          "
         >
+          Disconnect {{ printerStatus.deviceName || "printer" }}
+        </button>
         <div class="device-section">
           <h3>
             Supported printers <em>{{ supportedDevices.length }}</em>
@@ -842,6 +908,7 @@ onBeforeUnmount(() => {
               ><small
                 >MX/GB/GT compatible · {{ device.id.slice(-6) }}</small
               ></span
+            ><span class="remember-device" @click.stop><input :checked="isRemembered(device.name)" type="checkbox" @change="setRemembered(device.name, $event.target.checked)" /> Remember</span
             ><span
               ><i v-if="device.connecting" class="spinner" />{{
                 device.connecting ? "Connecting…" : "Connect"
@@ -910,6 +977,7 @@ onBeforeUnmount(() => {
             >
               🔌 Connection
             </button>
+            <button :class="{ active: activePreferenceTab === 'devices' }" @click="activePreferenceTab = 'devices'">📱 Devices</button>
             <button
               :class="{ active: activePreferenceTab === 'notifications' }"
               @click="activePreferenceTab = 'notifications'"
@@ -1002,23 +1070,6 @@ onBeforeUnmount(() => {
             <template v-if="activePreferenceTab === 'connection'">
               <section class="settings-section">
                 <div class="section-heading">
-                  <h3>Startup behavior</h3>
-                  <p>Choose what happens when {{ appInfo.name }} opens.</p>
-                </div>
-                <label class="toggle-row"
-                  ><span
-                    ><strong>Connect to last printer on startup</strong
-                    ><small
-                      >Reconnect automatically when a remembered printer is
-                      nearby.</small
-                    ></span
-                  ><input
-                    v-model="preferences.autoConnectOnStartup"
-                    type="checkbox"
-                /></label>
-              </section>
-              <section class="settings-section">
-                <div class="section-heading">
                   <h3>Disconnect</h3>
                   <p>Manage connection lifecycle.</p>
                 </div>
@@ -1039,6 +1090,31 @@ onBeforeUnmount(() => {
                     <option :value="900">15 minutes</option>
                   </select></label
                 >
+                <label class="setting-field"
+                  ><span
+                    ><strong>Remembered-printer timeout</strong
+                    ><small>How long Print searches before opening the device list.</small></span
+                  ><select v-model.number="preferences.advanced.connectTimeout">
+                    <option :value="5">5 seconds</option>
+                    <option :value="10">10 seconds</option>
+                    <option :value="15">15 seconds (default)</option>
+                    <option :value="30">30 seconds</option>
+                    <option :value="60">1 minute</option>
+                  </select></label
+                >
+              </section>
+            </template>
+            <template v-if="activePreferenceTab === 'devices'">
+              <section class="settings-section">
+                <div class="section-heading">
+                  <h3>Remembered printers</h3>
+                  <p>Clicking Print searches these printers first.</p>
+                </div>
+                <p v-if="!rememberedDevices.length" class="muted">No printers remembered yet.</p>
+                <div v-for="name in rememberedDevices" :key="name" class="setting-field">
+                  <strong>{{ name }}</strong>
+                  <button class="clear-link" @click="setRemembered(name, false)">Forget</button>
+                </div>
               </section>
             </template>
             <template v-if="activePreferenceTab === 'notifications'">
