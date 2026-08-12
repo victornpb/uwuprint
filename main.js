@@ -209,29 +209,6 @@ function chunkify(data, chunkSize) {
     return chunks;
 }
 
-function handleNotification(data) {
-    console.log("received notification");
-    // console.log(${sender}: [${data.map(x => x.toString(16).padStart(2, '0')).join(' ')}]);
-
-    if (Buffer.compare(data, Buffer.from(XOff)) === 0) {
-        console.log("Pausing transmission.");
-        transmit = false;
-    } else if (Buffer.compare(data, Buffer.from(XOn)) === 0) {
-        console.log("Resuming transmission.");
-        transmit = true;
-    } else if (data[2] === GetDevState) {
-        const statusByte = data[6];
-        status.isReady = statusByte === 0b00000000;
-        status.noPaper = (statusByte & 0b00000001) !== 0;
-        status.isLidOpen = (statusByte & 0b00000010) !== 0;
-        status.overtemp = (statusByte & 0b00000100) !== 0;
-        status.lowBattery = (statusByte & 0b00001000) !== 0;
-        
-        console.log('status changed', status);
-    }
-    
-}
-
 function delay(ms) {
     return new Promise(r => setTimeout(r, ms));
 }
@@ -357,8 +334,6 @@ async function preprocessAndDither(inputPath, outputPath, trim = DEFAULT_TRIM, a
 }
 
 function handleNotification(data) {
-    console.log("received notification");
-
     if (Buffer.compare(data, Buffer.from(XOff)) === 0) {
         console.log("Pausing transmission.");
         transmit = false;
@@ -409,6 +384,7 @@ async function runBLE() {
                 }
                 characteristic.on('data', function (data, b) {
                     console.log('Received Data', i, data, b);
+                    handleNotification(data);
                 });
             });
         });
