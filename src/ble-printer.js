@@ -1,0 +1,220 @@
+import {
+  buildFeedData,
+  buildPrintData,
+  buildRetractData,
+  buildStatusRequest,
+  flowControl,
+} from "../printer-protocol.js";
+
+const SERVICE_UUID = "0000ae30-0000-1000-8000-00805f9b34fb";
+const WRITE_UUID = "0000ae01-0000-1000-8000-00805f9b34fb";
+const NOTIFY_UUID = "0000ae02-0000-1000-8000-00805f9b34fb";
+const equalBytes = (first, second) =>
+  first.length === second.length &&
+  first.every((value, index) => value === second[index]);
+const delay = (milliseconds) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+export class BlePrinter {
+  constructor(onStatus, shouldReconnect, onProgress = () => {}) {
+    this.onStatus = onStatus;
+    this.shouldReconnect = shouldReconnect;
+    this.onProgress = onProgress;
+    this.device = null;
+    this.writeCharacteristic = null;
+    this.paused = false;
+    this.manualDisconnect = false;
+    this.state = {
+      connected: false,
+      message: "Disconnected",
+      deviceName: null,
+      paper: "Unknown",
+      lid: "Unknown",
+      temperature: "Normal",
+      battery: "Unknown",
+      busy: false,
+      buffer: "Ready",
+    };
+  }
+
+  async connect() {
+    this.manualDisconnect = false;
+    this.update({ connected: false, message: "Connecting…" });
+    this.device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [SERVICE_UUID],
+    });
+    this.device.addEventListener("gattserverdisconnected", () =>
+      this.handleDisconnect(),
+    );
+    await this.connectDevice();
+  }
+
+  async reconnectKnown(deviceName, force = false) {
+    if ((!force && !this.shouldReconnect()) || !navigator.bluetooth.getDevices)
+      throw new Error(
+        "Automatic reconnect is not available in this Electron session. Connect once from the device list.",
+      );
+    this.update({
+      connected: false,
+      message: `Auto-connecting to ${deviceName}…`,
+    });
+    const devices = await navigator.bluetooth.getDevices();
+    const device = devices.find((candidate) => candidate.name === deviceName);
+    if (!device) {
+      this.update({
+        message: "Auto-connect needs one manual connection first.",
+      });
+      return;
+    }
+    this.manualDisconnect = false;
+    this.device = device;
+    this.device.addEventListener("gattserverdisconnected", () =>
+      this.handleDisconnect(),
+    );
+    await this.connectDevice();
+  }
+
+  async connectDevice() {
+    this.update({ connected: false, message: "Connecting to printer…" });
+    const server = await this.device.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    this.writeCharacteristic = await service.getCharacteristic(WRITE_UUID);
+    const notificationCharacteristic =
+      await service.getCharacteristic(NOTIFY_UUID);
+    await notificationCharacteristic.startNotifications();
+    notificationCharacteristic.addEventListener(
+      "characteristicvaluechanged",
+      (event) =>
+        this.handleNotification(
+          new Uint8Array(
+            event.target.value.buffer,
+            event.target.value.byteOffset,
+            event.target.value.byteLength,
+          ),
+        ),
+    );
+    this.update({
+      connected: true,
+      deviceName: this.device.name || "printer",
+      message: `Connected to ${this.device.name || "printer"}`,
+    });
+    await this.send(buildStatusRequest());
+  }
+
+  handleDisconnect() {
+    this.writeCharacteristic = null;
+    const wasManual = this.manualDisconnect;
+    this.update({
+      connected: false,
+      message: wasManual ? "Disconnected" : "Lost connection",
+      busy: false,
+    });
+    if (!wasManual && this.shouldReconnect()) {
+      this.update({ message: "Lost connection — reconnecting…" });
+      setTimeout(
+        () =>
+          this.connectDevice().catch(() =>
+            this.update({ message: "Reconnect failed; retry from Connect." }),
+          ),
+        1500,
+      );
+    }
+  }
+
+  update(changes) {
+    this.state = { ...this.state, ...changes };
+    this.onStatus(this.state);
+  }
+
+  handleNotification(data) {
+    if (equalBytes(data, flowControl.pause)) {
+      this.paused = true;
+      this.update({ message: "Printer buffer full; waiting…", buffer: "Full" });
+      return;
+    }
+    if (equalBytes(data, flowControl.resume)) {
+      this.paused = false;
+      this.update({ message: "Ready", buffer: "Ready" });
+      return;
+    }
+    if (data[2] === 0xa3 && data.length >= 7) {
+      const value = data[6];
+      this.update({
+        paper: value & 0x01 ? "Out of paper" : "Loaded",
+        lid: value & 0x02 ? "Open" : "Closed",
+        temperature: value & 0x04 ? "Too hot" : "Normal",
+        battery: value & 0x08 ? "Low" : "OK",
+        busy: Boolean(value & 0x80),
+        message: value ? "Printer needs attention" : "Ready",
+      });
+    }
+  }
+
+  async send(data, chunkDelay = 20, reportProgress = false) {
+    if (!this.writeCharacteristic)
+      throw new Error("Connect the printer first.");
+    const delayMs = Math.max(0, Math.min(500, Number(chunkDelay) || 0));
+    for (let offset = 0; offset < data.length; offset += 245) {
+      while (this.paused) await delay(100);
+      await this.writeCharacteristic.writeValueWithoutResponse(
+        data.slice(offset, offset + 245),
+      );
+      if (delayMs) await delay(delayMs);
+      if (reportProgress)
+        this.onProgress(
+          Math.min(100, Math.round(((offset + 245) / data.length) * 100)),
+        );
+    }
+  }
+
+  async requestStatus() {
+    this.update({ message: "Requesting printer status…" });
+    await this.send(buildStatusRequest());
+  }
+
+  async print(pixels, width, height, settings = {}) {
+    const rows = [Array(width).fill(0)];
+    for (let y = 0; y < height; y++) {
+      const row = [];
+      for (let x = 0; x < width; x++)
+        row.push(pixels[y * width + x] < 128 ? 1 : 0);
+      rows.push(row);
+    }
+    const energy = Number.isFinite(Number(settings.energy))
+      ? Math.max(1, Math.min(65535, Number(settings.energy)))
+      : 0x9998;
+    const postFeed = Number.isFinite(Number(settings.postFeed))
+      ? Math.max(0, Math.min(500, Number(settings.postFeed)))
+      : 55;
+    const quality = Number(settings.quality);
+    const speed = Number(settings.speed);
+    this.onProgress(0);
+    await this.send(
+      buildPrintData(rows, energy, { quality, speed }),
+      settings.chunkDelay,
+      true,
+    );
+    await delay(2000);
+    if (settings.postFeedEnabled !== false)
+      await this.send(buildFeedData(postFeed), settings.chunkDelay);
+    this.onProgress(100);
+  }
+
+  disconnect() {
+    this.manualDisconnect = true;
+    this.device?.gatt?.disconnect();
+  }
+
+  async feedPaper(pixels) {
+    await this.send(
+      buildFeedData(Math.max(0, Math.min(500, Number(pixels) || 0))),
+    );
+  }
+
+  async retractPaper(pixels) {
+    await this.send(
+      buildRetractData(Math.max(0, Math.min(500, Number(pixels) || 0))),
+    );
+  }
+}
