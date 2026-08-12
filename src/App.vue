@@ -445,6 +445,16 @@ function clearQueue() {
   images.value = [];
   selectedId.value = null;
 }
+function disconnectPrinter() {
+  clearTimeout(disconnectTimer);
+  printer.disconnect();
+  printerStatus.value = {
+    ...printerStatus.value,
+    connected: false,
+    busy: false,
+    message: "Disconnected",
+  };
+}
 function openMarginSettings() {
   showSettings.value = true;
 }
@@ -512,14 +522,7 @@ onBeforeUnmount(() => {
           printerStatus.message
         }}<button v-if="!printerStatus.connected" @click="openPicker">
           Connect</button
-        ><button
-          v-else
-          class="secondary"
-          @click="
-            clearTimeout(disconnectTimer);
-            printer.disconnect();
-          "
-        >
+        ><button v-else class="secondary" @click="disconnectPrinter">
           Disconnect</button
         ><button
           class="icon-button"

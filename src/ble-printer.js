@@ -203,7 +203,21 @@ export class BlePrinter {
 
   disconnect() {
     this.manualDisconnect = true;
-    this.device?.gatt?.disconnect();
+    this.paused = false;
+    this.writeCharacteristic = null;
+    const device = this.device;
+    this.device = null;
+    // Chromium does not reliably dispatch gattserverdisconnected when the
+    // connection has already dropped. Update the UI immediately either way.
+    this.update({ connected: false, message: "Disconnected", busy: false });
+    // Do not use gatt.connected as a guard: Electron can report it stale while
+    // the underlying GATT connection is still open.
+    try {
+      device?.gatt?.disconnect();
+    } catch (error) {
+      // The UI is already disconnected; this only means GATT was gone first.
+      console.warn("BLE disconnect did not complete cleanly:", error);
+    }
   }
 
   async feedPaper(pixels) {
