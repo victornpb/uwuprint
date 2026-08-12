@@ -1,5 +1,7 @@
 {
   "name": "uwuprint",
+  "prodName": "UwuPrint",
+  "prodTagline": "MX06 thermal printer",
   "version": "0.0.0",
   "description": "",
   "main": "electron-main.js",

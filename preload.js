@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld("desktop", {
   getPathForFile: (file) => webUtils.getPathForFile(file),
   onOpenImages: (callback) =>
     ipcRenderer.on("open-images", (_event, paths) => callback(paths)),
+  onMenuAction: (callback) =>
+    ipcRenderer.on("menu-action", (_event, action) => callback(action)),
   onBluetoothDevices: (callback) =>
     ipcRenderer.on("bluetooth-devices", (_event, devices) => callback(devices)),
   selectBluetoothDevice: (deviceId) =>
@@ -21,6 +23,8 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.invoke("cancel-bluetooth-selection"),
   showNotification: (notification) =>
     ipcRenderer.invoke("show-notification", notification),
+  getAppInfo: () => ipcRenderer.invoke("app-info"),
+  updatePrinterMenu: (state) => ipcRenderer.send("update-printer-menu", state),
   getAccentColor: () => ipcRenderer.invoke("get-accent-color"),
   onAccentColorChanged: (callback) =>
     ipcRenderer.on("accent-color-changed", (_event, color) => callback(color)),

@@ -4,12 +4,26 @@ const {
   clipboard,
   dialog,
   ipcMain,
+  Menu,
   Notification,
   systemPreferences,
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const sharp = require("sharp");
+const packageJson = require("./package.json");
+
+const APP_NAME = packageJson.prodName || packageJson.name;
+const APP_SLUG_NAME = packageJson.name;
+const APP_TAGLINE = packageJson.prodTagline || packageJson.description;
+const APP_VERSION = packageJson.version;
+app.setName(APP_NAME);
+app.setAboutPanelOptions({
+  applicationName: APP_NAME,
+  applicationVersion: APP_VERSION,
+  version: APP_VERSION,
+  copyright: APP_TAGLINE,
+});
 
 const IMAGE_EXTENSIONS = new Set([
   ".png",
@@ -24,6 +38,7 @@ let mainWindow;
 let pendingOpenImages = collectImagePaths(process.argv);
 let rendererReady = false;
 let bluetoothSelection;
+let printerMenuState = { connected: false, printing: false, hasImages: false };
 const SUPPORTED_PRINTER_NAMES = new Set([
   "_ZZ00",
   "GB01",
@@ -62,6 +77,142 @@ function queueOpenImages(paths) {
     ...paths.filter((filePath) => !pendingOpenImages.includes(filePath)),
   );
   flushOpenImages();
+}
+
+function sendMenuAction(action) {
+  if (
+    mainWindow &&
+    !mainWindow.isDestroyed() &&
+    !mainWindow.webContents.isDestroyed()
+  )
+    mainWindow.webContents.send("menu-action", action);
+}
+
+function createApplicationMenu() {
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      {
+        label: APP_NAME,
+        submenu: [
+          { role: "about" },
+          { type: "separator" },
+          {
+            label: "Preferences…",
+            accelerator: "CommandOrControl+,",
+            click: () => sendMenuAction("preferences"),
+          },
+          { type: "separator" },
+          { role: "services" },
+          { type: "separator" },
+          { role: "hide" },
+          { role: "hideOthers" },
+          { role: "unhide" },
+          { type: "separator" },
+          { role: "quit" },
+        ],
+      },
+      {
+        label: "File",
+        submenu: [
+          {
+            label: "Add Images…",
+            accelerator: "CommandOrControl+O",
+            click: () => sendMenuAction("add-images"),
+          },
+          {
+            label: "Add from Clipboard",
+            accelerator: "CommandOrControl+Shift+V",
+            click: () => sendMenuAction("add-from-clipboard"),
+          },
+          { type: "separator" },
+          { label: "Clear Queue", click: () => sendMenuAction("clear-queue") },
+          { type: "separator" },
+          { role: "close" },
+        ],
+      },
+      {
+        label: "Edit",
+        submenu: [
+          { role: "undo" },
+          { role: "redo" },
+          { type: "separator" },
+          { role: "cut" },
+          { role: "copy" },
+          { role: "paste" },
+          { role: "selectAll" },
+        ],
+      },
+      {
+        label: "Printer",
+        submenu: [
+          {
+            id: "printer-connect",
+            label: "Connect…",
+            click: () => sendMenuAction("connect"),
+          },
+          {
+            id: "printer-disconnect",
+            label: "Disconnect",
+            click: () => sendMenuAction("disconnect"),
+          },
+          { type: "separator" },
+          {
+            id: "printer-refresh",
+            label: "Refresh Status",
+            accelerator: "CommandOrControl+R",
+            click: () => sendMenuAction("refresh-status"),
+          },
+          { type: "separator" },
+          {
+            id: "printer-feed",
+            label: "Feed Paper",
+            click: () => sendMenuAction("feed-paper"),
+          },
+          {
+            id: "printer-retract",
+            label: "Retract Paper",
+            click: () => sendMenuAction("retract-paper"),
+          },
+          { type: "separator" },
+          {
+            id: "printer-print",
+            label: "Print Image",
+            accelerator: "CommandOrControl+P",
+            click: () => sendMenuAction("print-image"),
+          },
+          {
+            id: "printer-print-all",
+            label: "Print All",
+            accelerator: "CommandOrControl+Shift+P",
+            click: () => sendMenuAction("print-all"),
+          },
+        ],
+      },
+      {
+        label: "Window",
+        submenu: [
+          { role: "minimize" },
+          { role: "zoom" },
+          { type: "separator" },
+          { role: "front" },
+        ],
+      },
+    ]),
+  );
+  updatePrinterMenu();
+}
+
+function updatePrinterMenu() {
+  const menu = Menu.getApplicationMenu();
+  if (!menu) return;
+  const { connected, printing, hasImages } = printerMenuState;
+  const canControl = connected && !printing;
+  menu.getMenuItemById("printer-connect").enabled = !connected;
+  menu.getMenuItemById("printer-disconnect").enabled = connected;
+  for (const id of ["printer-refresh", "printer-feed", "printer-retract"])
+    menu.getMenuItemById(id).enabled = canControl;
+  menu.getMenuItemById("printer-print").enabled = canControl && hasImages;
+  menu.getMenuItemById("printer-print-all").enabled = canControl && hasImages;
 }
 
 function createWindow() {
@@ -222,7 +373,7 @@ ipcMain.handle("paste-image", async () => {
 
   const filePath = path.join(
     app.getPath("temp"),
-    `uwuprint-clipboard-${Date.now()}-${Math.random().toString(16).slice(2)}.png`,
+    `${APP_SLUG_NAME}-clipboard-${Date.now()}-${Math.random().toString(16).slice(2)}.png`,
   );
   await fs.promises.writeFile(filePath, image.toPNG());
   return filePath;
@@ -240,7 +391,7 @@ ipcMain.handle("import-dropped-image", async (_event, bytes, mimeType) => {
     }[mimeType] || ".png";
   const filePath = path.join(
     app.getPath("temp"),
-    `uwuprint-dropped-${Date.now()}-${Math.random().toString(16).slice(2)}${extension}`,
+    `${APP_SLUG_NAME}-dropped-${Date.now()}-${Math.random().toString(16).slice(2)}${extension}`,
   );
   try {
     const data = Buffer.from(bytes);
@@ -273,7 +424,7 @@ ipcMain.handle("import-dropped-image-data-url", async (_event, dataUrl) => {
     await sharp(data).metadata();
     const filePath = path.join(
       app.getPath("temp"),
-      `uwuprint-dropped-${Date.now()}-${Math.random().toString(16).slice(2)}${extension}`,
+      `${APP_SLUG_NAME}-dropped-${Date.now()}-${Math.random().toString(16).slice(2)}${extension}`,
     );
     await fs.promises.writeFile(filePath, data);
     return { path: filePath, error: null };
@@ -356,6 +507,17 @@ ipcMain.handle("show-notification", (_event, { title, body }) => {
   if (Notification.isSupported()) new Notification({ title, body }).show();
 });
 
+ipcMain.handle("app-info", () => ({
+  name: APP_NAME,
+  slug: APP_SLUG_NAME,
+  tagline: APP_TAGLINE,
+  version: APP_VERSION,
+}));
+ipcMain.on("update-printer-menu", (_event, state) => {
+  printerMenuState = { ...printerMenuState, ...state };
+  updatePrinterMenu();
+});
+
 ipcMain.handle("get-accent-color", () => {
   try {
     return `#${systemPreferences.getAccentColor()}`;
@@ -395,7 +557,11 @@ app.on("open-file", (event, filePath) => {
 });
 
 if (!app.requestSingleInstanceLock()) app.quit();
-else app.whenReady().then(createWindow);
+else
+  app.whenReady().then(() => {
+    createApplicationMenu();
+    createWindow();
+  });
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });

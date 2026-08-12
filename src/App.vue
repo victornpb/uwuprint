@@ -10,6 +10,7 @@ import {
 import { BlePrinter } from "./ble-printer.js";
 
 const images = ref([]);
+const appInfo = ref({ name: "App", slug: "app", tagline: "", version: "" });
 const selectedId = ref(null);
 const processing = ref(false);
 const printing = ref(false);
@@ -137,25 +138,25 @@ function updatePrinterStatus(next) {
   if (next.battery === "Low" && previous.battery !== "Low")
     maybeNotify(
       "lowBattery",
-      "UwuPrint battery low",
+      `${appInfo.value.name} battery low`,
       "Charge the MX06 printer soon.",
     );
   if (next.paper === "Out of paper" && previous.paper !== "Out of paper")
     maybeNotify(
       "paper",
-      "UwuPrint needs paper",
+      `${appInfo.value.name} needs paper`,
       "Load a new thermal paper roll.",
     );
   if (next.lid === "Open" && previous.lid !== "Open")
     maybeNotify(
       "lid",
-      "UwuPrint lid open",
+      `${appInfo.value.name} lid open`,
       "Close the printer lid before printing.",
     );
   if (next.temperature === "Too hot" && previous.temperature !== "Too hot")
     maybeNotify(
       "temperature",
-      "UwuPrint is cooling down",
+      `${appInfo.value.name} is cooling down`,
       "The printhead is too hot. Wait before printing again.",
     );
 }
@@ -350,7 +351,7 @@ async function printSelected() {
     updatePrinterStatus({ ...printerStatus.value, message: "Print complete" });
     maybeNotify(
       "printComplete",
-      "UwuPrint print complete",
+      `${appInfo.value.name} print complete`,
       `${selected.value.name} finished printing.`,
     );
     scheduleDisconnect();
@@ -521,6 +522,16 @@ watch(preferences, savePreferences, { deep: true });
 watch(() => selected.value?.id, renderSelected);
 watch(() => selected.value?.options, renderSelected, { deep: true });
 watch(
+  [() => printerStatus.value.connected, printing, () => images.value.length],
+  ([connected, isPrinting, imageCount]) =>
+    window.desktop.updatePrinterMenu({
+      connected,
+      printing: isPrinting,
+      hasImages: imageCount > 0,
+    }),
+  { immediate: true },
+);
+watch(
   () => queueOptions.value.pause,
   (enabled) => {
     if (!enabled) {
@@ -530,6 +541,10 @@ watch(
   },
 );
 onMounted(() => {
+  window.desktop.getAppInfo().then((info) => {
+    appInfo.value = info;
+    document.title = info.name;
+  });
   window.desktop.getAccentColor?.().then((color) => {
     document.documentElement.style.setProperty("--os-accent", color);
   });
@@ -538,6 +553,25 @@ onMounted(() => {
   });
 
   window.desktop.onOpenImages(addImages);
+  window.desktop.onMenuAction((action) => {
+    const actions = {
+      "add-images": chooseImages,
+      "add-from-clipboard": pasteFromClipboard,
+      "clear-queue": clearQueue,
+      connect: openPicker,
+      disconnect: disconnectPrinter,
+      "refresh-status": refreshStatus,
+      "feed-paper": feedPaper,
+      "retract-paper": retractPaper,
+      "print-image": printSelected,
+      "print-all": printAll,
+      preferences: () => {
+        showPreferences.value = true;
+        activePreferenceTab.value = "printer";
+      },
+    };
+    actions[action]?.();
+  });
   window.desktop.onBluetoothDevices((list) => {
     devices.value = list;
   });
@@ -566,8 +600,8 @@ onBeforeUnmount(() => {
   >
     <header>
       <div>
-        <h1>UwuPrint</h1>
-        <p>MX06 thermal printer</p>
+        <h1>{{ appInfo.name }}</h1>
+        <p>{{ appInfo.tagline }}</p>
       </div>
       <div class="connection">
         <span :class="['dot', { connected: printerStatus.connected }]" />{{
@@ -969,7 +1003,7 @@ onBeforeUnmount(() => {
               <section class="settings-section">
                 <div class="section-heading">
                   <h3>Startup behavior</h3>
-                  <p>Choose what happens when UwuPrint opens.</p>
+                  <p>Choose what happens when {{ appInfo.name }} opens.</p>
                 </div>
                 <label class="toggle-row"
                   ><span
@@ -1016,7 +1050,9 @@ onBeforeUnmount(() => {
                 <label class="toggle-row"
                   ><span
                     ><strong>Notifications</strong
-                    ><small>Master switch for UwuPrint alerts</small></span
+                    ><small
+                      >Master switch for {{ appInfo.name }} alerts</small
+                    ></span
                   ><input
                     v-model="preferences.notifications.enabled"
                     type="checkbox"
