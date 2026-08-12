@@ -3,6 +3,11 @@ const { contextBridge, ipcRenderer, webUtils } = require("electron");
 contextBridge.exposeInMainWorld("desktop", {
   chooseImages: () => ipcRenderer.invoke("choose-images"),
   pasteImage: () => ipcRenderer.invoke("paste-image"),
+  pasteFiles: () => ipcRenderer.invoke("paste-files"),
+  importDroppedImage: (bytes, mimeType) =>
+    ipcRenderer.invoke("import-dropped-image", bytes, mimeType),
+  importDroppedImageDataUrl: (dataUrl) =>
+    ipcRenderer.invoke("import-dropped-image-data-url", dataUrl),
   renderImage: (filePath, options) =>
     ipcRenderer.invoke("render-image", filePath, options),
   getPathForFile: (file) => webUtils.getPathForFile(file),

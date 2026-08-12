@@ -21,7 +21,8 @@ const IMAGE_EXTENSIONS = new Set([
   ".bmp",
 ]);
 let mainWindow;
-let launchImages = collectImagePaths(process.argv);
+let pendingOpenImages = collectImagePaths(process.argv);
+let rendererReady = false;
 let bluetoothSelection;
 const SUPPORTED_PRINTER_NAMES = new Set([
   "_ZZ00",
@@ -44,18 +45,27 @@ function collectImagePaths(values) {
   );
 }
 
-function sendOpenImages(paths) {
+function flushOpenImages() {
   if (
-    paths.length &&
+    pendingOpenImages.length &&
+    rendererReady &&
     mainWindow &&
     !mainWindow.isDestroyed() &&
     !mainWindow.webContents.isDestroyed()
   ) {
-    mainWindow.webContents.send("open-images", paths);
+    mainWindow.webContents.send("open-images", pendingOpenImages);
+    pendingOpenImages = [];
   }
+}
+function queueOpenImages(paths) {
+  pendingOpenImages.push(
+    ...paths.filter((filePath) => !pendingOpenImages.includes(filePath)),
+  );
+  flushOpenImages();
 }
 
 function createWindow() {
+  rendererReady = false;
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 850,
@@ -97,9 +107,10 @@ function createWindow() {
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
   if (devServerUrl) mainWindow.loadURL(devServerUrl);
   else mainWindow.loadFile(path.join(__dirname, "dist", "index.html"));
-  mainWindow.webContents.once("did-finish-load", () =>
-    sendOpenImages(launchImages),
-  );
+  mainWindow.webContents.once("did-finish-load", () => {
+    rendererReady = true;
+    flushOpenImages();
+  });
 }
 
 function clamp(value, minimum, maximum) {
@@ -217,6 +228,110 @@ ipcMain.handle("paste-image", async () => {
   return filePath;
 });
 
+ipcMain.handle("import-dropped-image", async (_event, bytes, mimeType) => {
+  const extension =
+    {
+      "image/png": ".png",
+      "image/jpeg": ".jpg",
+      "image/webp": ".webp",
+      "image/gif": ".gif",
+      "image/bmp": ".bmp",
+      "image/tiff": ".tiff",
+    }[mimeType] || ".png";
+  const filePath = path.join(
+    app.getPath("temp"),
+    `uwuprint-dropped-${Date.now()}-${Math.random().toString(16).slice(2)}${extension}`,
+  );
+  try {
+    const data = Buffer.from(bytes);
+    await sharp(data).metadata();
+    await fs.promises.writeFile(filePath, data);
+    return { path: filePath, error: null };
+  } catch {
+    // Safari sometimes labels a drag representation as image/png or image/webp
+    // even when it contains a pasteboard placeholder. Let the renderer try the
+    // accompanying source URL instead of adding an invalid queue item.
+    return { path: null, error: "Browser drag did not contain image bytes." };
+  }
+});
+
+ipcMain.handle("import-dropped-image-data-url", async (_event, dataUrl) => {
+  const match = /^data:([^;,]+);base64,([\s\S]+)$/i.exec(dataUrl);
+  if (!match) return { path: null, error: "Invalid dropped image data." };
+  const [, mimeType, base64] = match;
+  const extension =
+    {
+      "image/png": ".png",
+      "image/jpeg": ".jpg",
+      "image/webp": ".webp",
+      "image/gif": ".gif",
+      "image/bmp": ".bmp",
+      "image/tiff": ".tiff",
+    }[mimeType] || ".png";
+  const data = Buffer.from(base64, "base64");
+  try {
+    await sharp(data).metadata();
+    const filePath = path.join(
+      app.getPath("temp"),
+      `uwuprint-dropped-${Date.now()}-${Math.random().toString(16).slice(2)}${extension}`,
+    );
+    await fs.promises.writeFile(filePath, data);
+    return { path: filePath, error: null };
+  } catch {
+    return { path: null, error: "Browser drag did not contain image bytes." };
+  }
+});
+
+ipcMain.handle("paste-files", () => {
+  const formats = clipboard.availableFormats();
+  const paths = [];
+  const readClipboardFormat = (format) => {
+    try {
+      return clipboard.read(format);
+    } catch {
+      return "";
+    }
+  };
+
+  // Finder puts a preview/icon image on the clipboard too. Its actual files
+  // are stored in this macOS plist, not necessarily as public.file-url.
+  if (process.platform === "darwin") {
+    const plist = readClipboardFormat("NSFilenamesPboardType");
+    for (const match of plist.matchAll(/<string>([\s\S]*?)<\/string>/g)) {
+      paths.push(
+        match[1]
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&#39;/g, "'")
+          .replace(/&quot;/g, '"'),
+      );
+    }
+  }
+  const raw = [
+    "public.file-url",
+    "text/uri-list",
+    "NSURLPboardType",
+    "com.apple.pasteboard.promised-file-url",
+  ]
+    .map(readClipboardFormat)
+    .join("\n");
+  paths.push(
+    ...raw
+      .split(/[\r\n]+/)
+      .filter((value) => value.startsWith("file://"))
+      .map((value) => {
+        try {
+          return require("url").fileURLToPath(value);
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean),
+  );
+  return { paths: collectImagePaths([...new Set(paths)]), formats };
+});
+
 ipcMain.handle("render-image", async (_event, inputPath, options) => {
   const result = await renderImage(inputPath, options);
   return {
@@ -261,7 +376,7 @@ app.on("second-instance", (_event, argv) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.show();
       mainWindow.focus();
-      sendOpenImages(paths);
+      queueOpenImages(paths);
     }
   } catch (error) {
     console.warn(
@@ -271,11 +386,12 @@ app.on("second-instance", (_event, argv) => {
   }
 });
 
+// Register before Electron's ready event: macOS emits this when a file is
+// dropped onto the Dock icon, including while the app is launching.
 app.on("open-file", (event, filePath) => {
   event.preventDefault();
   const paths = collectImagePaths([filePath]);
-  if (mainWindow && !mainWindow.isDestroyed()) sendOpenImages(paths);
-  else launchImages.push(...paths);
+  queueOpenImages(paths);
 });
 
 if (!app.requestSingleInstanceLock()) app.quit();

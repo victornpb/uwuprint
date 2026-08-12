@@ -191,31 +191,76 @@ async function renderAddedImages(added) {
 async function chooseImages() {
   addImages(await window.desktop.chooseImages());
 }
-async function pasteImage() {
-  const imagePath = await window.desktop.pasteImage();
-  if (imagePath) addImages([imagePath]);
-  else
+async function pasteFromClipboard() {
+  try {
+    const { paths: filePaths, formats } = await window.desktop.pasteFiles();
+    if (filePaths.length) {
+      addImages(filePaths);
+      return;
+    }
+    const imagePath = await window.desktop.pasteImage();
+    if (imagePath) {
+      addImages([imagePath]);
+      return;
+    }
     printerStatus.value = {
       ...printerStatus.value,
-      message: "Clipboard does not contain an image",
+      message: `Clipboard does not contain an image (${formats.join(", ") || "no supported formats"})`,
     };
-}
-function handlePaste(event) {
-  if (
-    [...event.clipboardData.items].some((item) =>
-      item.type.startsWith("image/"),
-    )
-  ) {
-    event.preventDefault();
-    pasteImage();
+  } catch (error) {
+    printerStatus.value = {
+      ...printerStatus.value,
+      message: `Could not read clipboard: ${error.message}`,
+    };
   }
 }
+function handlePaste(event) {
+  if (["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)) return;
+  event.preventDefault();
+  pasteFromClipboard();
+}
+function handleDragOver(event) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "copy";
+}
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () =>
+      reject(reader.error || new Error("Could not read image."));
+    reader.readAsDataURL(file);
+  });
+}
 async function handleDrop(event) {
-  addImages(
-    [...event.dataTransfer.files]
-      .map(window.desktop.getPathForFile)
-      .filter(isImagePath),
-  );
+  const droppedFiles = [...event.dataTransfer.files];
+  // Browsers can expose the rendered image as an in-memory File. Preserve its
+  // bytes instead of re-downloading an often protected CDN URL.
+  const imageFile = [
+    ...[...event.dataTransfer.items]
+      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+      .map((item) => item.getAsFile()),
+    ...droppedFiles,
+  ].find((file) => file?.type.startsWith("image/") && file.size > 0);
+  if (imageFile) {
+    try {
+      const dataUrl = await readAsDataUrl(imageFile);
+      const { path: importedPath } =
+        await window.desktop.importDroppedImageDataUrl(dataUrl);
+      if (importedPath) return addImages([importedPath]);
+    } catch (error) {
+      // Continue to the URL representation below.
+    }
+  }
+  const files = droppedFiles
+    .map(window.desktop.getPathForFile)
+    .filter(isImagePath);
+  if (files.length) return addImages(files);
+  printerStatus.value = {
+    ...printerStatus.value,
+    message:
+      "This browser drag did not include image data. Use Copy Image, then paste.",
+  };
 }
 async function renderSelected() {
   if (!selected.value) return;
@@ -516,7 +561,7 @@ onBeforeUnmount(() => {
     tabindex="-1"
     @keydown="onContinueKey"
     @paste="handlePaste"
-    @dragover.prevent
+    @dragover="handleDragOver"
     @drop.prevent="handleDrop"
   >
     <header>
@@ -573,7 +618,7 @@ onBeforeUnmount(() => {
             <button v-if="images.length" class="clear-link" @click="clearQueue">
               Clear</button
             ><button class="add" @click="chooseImages">Add images</button
-            ><button class="secondary" @click="pasteImage">
+            ><button class="secondary" @click="pasteFromClipboard">
               Add from clipboard
             </button>
           </div>
