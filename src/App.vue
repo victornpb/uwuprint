@@ -1510,25 +1510,8 @@ onBeforeUnmount(() => {
         </footer>
       </section>
     </div>
-  <template v-if="activePreferenceTab === 'appearance'">
-              <section class="settings-section">
-                <div class="section-heading">
-                  <h3>Appearance</h3>
-                  <p>Choose the application theme.</p>
-                </div>
-                <label class="setting-field"
-                  ><span
-                    ><strong>Theme</strong
-                    ><small>Select light, dark, or follow system setting.</small></span
-                  ><select v-model="preferences.appearance.theme">
-                    <option value="system">System</option>
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                  </select></label
-                >
-              </section>
-            </template>
-          </main>
+
+  </main>
 </template>
 
 <style>
