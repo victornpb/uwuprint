@@ -2,13 +2,16 @@
   "name": "uwuprint",
   "prodName": "UwuPrint",
   "prodTagline": "MX06 thermal printer",
+  "productName": "UwuPrint",
   "version": "0.0.0",
   "description": "",
   "main": "electron-main.js",
   "scripts": {
     "dev": "node scripts/dev.js",
     "start": "electron .",
-    "build": "vite build"
+    "build": "vite build",
+    "package": "npm run build && electron-builder --dir",
+    "make:mac": "npm run build && electron-builder --mac"
   },
   "author": "Victornpb",
   "license": "UNLICENSED",
@@ -19,7 +22,84 @@
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.5",
     "electron": "^40.6.1",
+    "electron-builder": "^26.15.3",
     "prettier": "^3.7.4",
     "vite": "^7.3.1"
+  },
+  "build": {
+    "appId": "com.victornpb.uwuprint",
+    "productName": "UwuPrint",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron-main.js",
+      "preload.js",
+      "printer-protocol.js",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "asarUnpack": [
+      "node_modules/sharp/**/*"
+    ],
+    "fileAssociations": [
+      {
+        "ext": [
+          "png"
+        ],
+        "name": "PNG Image",
+        "role": "Editor",
+        "mimeType": "image/png"
+      },
+      {
+        "ext": [
+          "jpg",
+          "jpeg"
+        ],
+        "name": "JPEG Image",
+        "role": "Editor",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "ext": [
+          "webp"
+        ],
+        "name": "WebP Image",
+        "role": "Editor",
+        "mimeType": "image/webp"
+      },
+      {
+        "ext": [
+          "gif"
+        ],
+        "name": "GIF Image",
+        "role": "Editor",
+        "mimeType": "image/gif"
+      },
+      {
+        "ext": [
+          "tif",
+          "tiff"
+        ],
+        "name": "TIFF Image",
+        "role": "Editor",
+        "mimeType": "image/tiff"
+      },
+      {
+        "ext": [
+          "bmp"
+        ],
+        "name": "Bitmap Image",
+        "role": "Editor",
+        "mimeType": "image/bmp"
+      }
+    ]
   }
 }
