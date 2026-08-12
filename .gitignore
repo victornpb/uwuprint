@@ -3,7 +3,9 @@
 ###############################################################################
 
 #.foobar
-
+*.png
+*.pdf
+*.jpg
 
 ###############################################################################
 # Ultimate GitIgnore for Javascript/Node.js
@@ -315,7 +317,8 @@ GitHub.sublime-settings
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*
