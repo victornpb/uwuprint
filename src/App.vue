@@ -926,22 +926,25 @@ onBeforeUnmount(() => {
           <label
             ><input v-model="queueOptions.feedBetween" type="checkbox" /> Margin
             between pages <div class="margin-input"><input :value="marginDisplay('marginBetween')" @input="setMargin('marginBetween', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></div></label>
-          <label style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-            <span style="display: flex; align-items: center; gap: 4px;">
-              <input v-model="queueOptions.pause" type="checkbox" />
-              <select v-if="queueOptions.pause" v-model.number="autoContinueSeconds">
-                <option :value="0">Click to continue</option>
-                <option :value="1">1 sec</option>
-                <option :value="2">2 sec</option>
-                <option :value="3">3 sec</option>
-                <option :value="4">4 sec</option>
-                <option :value="5">5 sec</option>
-                <option :value="10">10 sec</option>
-                <option :value="15">15 sec</option>
-                <option :value="30">30 sec</option>
-              </select>
-              Pause between items <span title="Prints and then pauses so you can manually tear the paper before the next label." style="cursor: help; color: var(--sys-text-secondary); border: 1px solid currentColor; border-radius: 50%; width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold;">?</span>
-            </span>
+          <label style="display: flex; flex-direction: column; align-items: stretch; gap: 6px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+              <span style="display: flex; align-items: center; gap: 4px;">
+                <input v-model="queueOptions.pause" type="checkbox" />
+                Pause between items
+              </span>
+              <span title="Prints and then pauses so you can manually tear the paper before the next label." style="cursor: help; color: var(--sys-text-secondary); border: 1px solid currentColor; border-radius: 50%; width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; flex-shrink: 0;">?</span>
+            </div>
+            <select :disabled="!queueOptions.pause" v-model.number="autoContinueSeconds" style="margin-left: 20px; width: calc(100% - 20px);">
+              <option :value="0">Click to continue</option>
+              <option :value="1">1 sec</option>
+              <option :value="2">2 sec</option>
+              <option :value="3">3 sec</option>
+              <option :value="4">4 sec</option>
+              <option :value="5">5 sec</option>
+              <option :value="10">10 sec</option>
+              <option :value="15">15 sec</option>
+              <option :value="30">30 sec</option>
+            </select>
           </label>
           <button :disabled="printing" @click="printAll">Print all</button>
         </div>
@@ -1012,49 +1015,52 @@ onBeforeUnmount(() => {
           <h2>Image controls</h2>
           <button class="clear-link" @click="resetImageControls">Reset</button>
         </div>
-        <label
-          >Rotation<select v-model.number="selected.options.rotation">
-            <option :value="0">0°</option>
-            <option :value="90">90°</option>
-            <option :value="180">180°</option>
-            <option :value="270">270°</option>
-          </select></label
-        ><label
-          >Contrast <output>{{ selected.options.contrast.toFixed(2) }}</output
-          ><input
-            v-model.number="selected.options.contrast"
-            @dblclick="resetControl('contrast', 1)"
-            type="range"
-            min="0.5"
-            max="2"
-            step="0.05" /></label
-        ><label
-          >Brightness <output>{{ selected.options.brightness }}</output
-          ><input
-            v-model.number="selected.options.brightness"
-            @dblclick="resetControl('brightness', 0)"
-            type="range"
-            min="-80"
-            max="80"
-            step="1" /></label
-        ><label
-          >Dithering<select v-model="selected.options.dither">
-            <option value="floyd-steinberg">Floyd–Steinberg</option>
-            <option value="threshold">Threshold</option>
-          </select></label
-        ><div class="main-margin-controls">
-          <div class="controls-heading"><strong>Print margins</strong><small>{{ preferences.printer.marginUnits }}</small></div>
-          <label><span><input v-model="preferences.printer.marginTopEnabled" type="checkbox" /> Top</span><div class="margin-input"><input :value="marginDisplay('marginTop')" @input="setMargin('marginTop', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></div></label>
-          <label><span><input v-model="preferences.printer.marginBottomEnabled" type="checkbox" /> Bottom</span><div class="margin-input"><input :value="marginDisplay('marginBottom')" @input="setMargin('marginBottom', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></div></label>
-        </div>
-        <div class="copies-control">
-          <div class="controls-heading"><strong>Copies</strong><small>Printed as queue items</small></div>
-          <div class="copies-stepper">
-            <button class="secondary" @click="selected.copies = Math.max(1, (selected.copies || 1) - 1)">−</button>
-            <input v-model.number="selected.copies" @change="selected.copies = Math.max(1, Math.min(99, Number(selected.copies) || 1))" type="number" min="1" max="99" />
-            <button class="secondary" @click="selected.copies = Math.min(99, (selected.copies || 1) + 1)">+</button>
+        <div class="controls-body">
+          <label
+            >Rotation<select v-model.number="selected.options.rotation">
+              <option :value="0">0°</option>
+              <option :value="90">90°</option>
+              <option :value="180">180°</option>
+              <option :value="270">270°</option>
+            </select></label
+          ><label
+            >Contrast <output>{{ selected.options.contrast.toFixed(2) }}</output
+            ><input
+              v-model.number="selected.options.contrast"
+              @dblclick="resetControl('contrast', 1)"
+              type="range"
+              min="0.5"
+              max="2"
+              step="0.05" /></label
+          ><label
+            >Brightness <output>{{ selected.options.brightness }}</output
+            ><input
+              v-model.number="selected.options.brightness"
+              @dblclick="resetControl('brightness', 0)"
+              type="range"
+              min="-80"
+              max="80"
+              step="1" /></label
+          ><label
+            >Dithering<select v-model="selected.options.dither">
+              <option value="floyd-steinberg">Floyd–Steinberg</option>
+              <option value="threshold">Threshold</option>
+            </select></label
+          ><div class="main-margin-controls">
+            <div class="controls-heading"><strong>Print margins</strong><small>{{ preferences.printer.marginUnits }}</small></div>
+            <label><span><input v-model="preferences.printer.marginTopEnabled" type="checkbox" /> Top</span><div class="margin-input"><input :value="marginDisplay('marginTop')" @input="setMargin('marginTop', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></div></label>
+            <label><span><input v-model="preferences.printer.marginBottomEnabled" type="checkbox" /> Bottom</span><div class="margin-input"><input :value="marginDisplay('marginBottom')" @input="setMargin('marginBottom', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></div></label>
           </div>
-        </div><div class="queue-actions bottom-actions" style="margin-top: auto; padding: 16px;">
+          <div class="copies-control">
+            <div class="controls-heading"><strong>Copies</strong><small>Printed as queue items</small></div>
+            <div class="copies-stepper">
+              <button class="secondary" @click="selected.copies = Math.max(1, (selected.copies || 1) - 1)">−</button>
+              <input v-model.number="selected.copies" @change="selected.copies = Math.max(1, Math.min(99, Number(selected.copies) || 1))" type="number" min="1" max="99" />
+              <button class="secondary" @click="selected.copies = Math.min(99, (selected.copies || 1) + 1)">+</button>
+            </div>
+          </div>
+        </div>
+        <div class="queue-actions bottom-actions">
           <button
             class="print"
             :disabled="processing || printing"
