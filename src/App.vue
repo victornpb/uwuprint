@@ -25,9 +25,8 @@ const renderTasks = new Map();
 const showContinue = ref(false);
 const queueIndex = ref(0);
 const showPicker = ref(false);
-const showAppSettings = ref(false);
-const showSettings = ref(false);
-const showAdvanced = ref(false);
+const showPreferences = ref(false);
+const activePreferenceTab = ref("printer");
 const showOtherDevices = ref(false);
 const devices = ref([]);
 const preferences = ref(
@@ -456,7 +455,8 @@ function disconnectPrinter() {
   };
 }
 function openMarginSettings() {
-  showSettings.value = true;
+  activePreferenceTab.value = "printer";
+  showPreferences.value = true;
 }
 function scheduleDisconnect() {
   clearTimeout(disconnectTimer);
@@ -485,6 +485,13 @@ watch(
   },
 );
 onMounted(() => {
+  window.desktop.getAccentColor?.().then((color) => {
+    document.documentElement.style.setProperty("--os-accent", color);
+  });
+  window.desktop.onAccentColorChanged?.((color) => {
+    document.documentElement.style.setProperty("--os-accent", color);
+  });
+
   window.desktop.onOpenImages(addImages);
   window.desktop.onBluetoothDevices((list) => {
     devices.value = list;
@@ -526,20 +533,11 @@ onBeforeUnmount(() => {
           Disconnect</button
         ><button
           class="icon-button"
-          title="Advanced settings"
-          @click="showAdvanced = true"
-        >
-          ⋯</button
-        ><button
-          class="icon-button"
-          title="Printer settings"
-          @click="showSettings = true"
-        >
-          🖨</button
-        ><button
-          class="icon-button"
-          title="App settings"
-          @click="showAppSettings = true"
+          title="Preferences"
+          @click="
+            showPreferences = true;
+            activePreferenceTab = 'printer';
+          "
         >
           ⚙
         </button>
@@ -613,12 +611,7 @@ onBeforeUnmount(() => {
           </article>
         </div>
         <div v-if="images.length" class="queue-actions bottom-actions">
-          <button
-            :disabled="!printerStatus.connected || printing"
-            @click="printAll"
-          >
-            Print all</button
-          ><label
+          <label
             ><input v-model="queueOptions.pause" type="checkbox" /> Pause
             between items</label
           ><label v-if="queueOptions.pause"
@@ -639,7 +632,15 @@ onBeforeUnmount(() => {
             >
               ⚙
             </button></label
+          ><button
+            :disabled="!printerStatus.connected || printing"
+            :title="
+              !printerStatus.connected ? 'Connect a printer to print' : ''
+            "
+            @click="printAll"
           >
+            Print all
+          </button>
         </div>
       </aside>
       <section class="workspace">
@@ -708,6 +709,7 @@ onBeforeUnmount(() => {
         ><button
           class="print"
           :disabled="!printerStatus.connected || processing || printing"
+          :title="!printerStatus.connected ? 'Connect a printer to print' : ''"
           @click="printSelected"
         >
           Print image
@@ -725,14 +727,14 @@ onBeforeUnmount(() => {
       ><span><b>Battery</b>{{ printerStatus.battery }}</span
       ><span><b>Printer</b>{{ printerStatus.busy ? "Busy" : "Ready" }}</span
       ><button
-        class="status-refresh"
+        class="status-refresh clear-link"
         :disabled="!printerStatus.connected"
         @click="refreshStatus"
       >
         Refresh status
       </button>
     </section>
-    <div v-if="showPicker" class="modal-backdrop">
+    <div v-if="showPicker" class="modal-backdrop" @click.self="closePicker">
       <section class="modal">
         <div class="modal-header">
           <div>
@@ -803,219 +805,242 @@ onBeforeUnmount(() => {
         </div>
       </section>
     </div>
-    <div v-if="showAppSettings" class="modal-backdrop">
-      <section class="modal settings">
-        <div class="modal-header">
-          <div>
-            <h2>App settings</h2>
-            <p>Preferences for how UwuPrint behaves.</p>
-          </div>
-          <button class="icon-button" @click="showAppSettings = false">
+    <div
+      v-if="showPreferences"
+      class="modal-backdrop"
+      @click.self="showPreferences = false"
+    >
+      <section class="modal preferences-modal">
+        <div class="preferences-header">
+          <h2>Preferences</h2>
+          <button class="icon-button" @click="showPreferences = false">
             ×
           </button>
         </div>
-        <section class="settings-section">
-          <div class="section-heading">
-            <h3>Connection</h3>
-            <p>Choose what happens when UwuPrint opens.</p>
-          </div>
-          <label class="toggle-row"
-            ><span
-              ><strong>Connect to last printer on startup</strong
-              ><small
-                >Reconnect automatically when a remembered printer is
-                nearby.</small
-              ></span
-            ><input v-model="preferences.autoConnectOnStartup" type="checkbox"
-          /></label>
-        </section>
-        <footer class="settings-footer">
-          <button class="secondary" @click="showAppSettings = false">
-            Done
-          </button>
-        </footer>
-      </section>
-    </div>
-    <div v-if="showSettings" class="modal-backdrop">
-      <section class="modal settings">
-        <div class="modal-header">
-          <div>
-            <h2>Printer settings</h2>
-            <p>Controls are saved automatically for this printer.</p>
-          </div>
-          <button class="icon-button" @click="showSettings = false">×</button>
-        </div>
-        <section class="settings-section">
-          <div class="section-heading">
-            <h3>Print quality</h3>
-            <p>Balance darkness, detail, and printhead heat.</p>
-          </div>
-          <label class="setting-field"
-            ><span
-              ><strong>Print energy</strong
-              ><small>Higher values print darker.</small></span
-            ><input
-              v-model.number="preferences.printer.energy"
-              type="number"
-              min="1"
-              max="65535" /></label
-          ><label class="setting-field"
-            ><span
-              ><strong>Print density</strong
-              ><small>Controls the printer’s dot concentration.</small></span
-            ><select v-model.number="preferences.printer.quality">
-              <option :value="1">1 · Lightest</option>
-              <option :value="2">2 · Light</option>
-              <option :value="3">3 · Medium</option>
-              <option :value="4">4 · Dark</option>
-              <option :value="5">5 · Darkest</option>
-            </select></label
-          >
-        </section>
-        <section class="settings-section">
-          <div class="section-heading">
-            <h3>Paper movement</h3>
-            <p>Move paper forward or backward by the selected amount.</p>
-          </div>
-          <label class="setting-field"
-            ><span
-              ><strong>Post-print feed</strong
-              ><small>Extra paper after each image.</small></span
-            ><input
-              v-model.number="preferences.printer.postFeed"
-              type="number"
-              min="0"
-              max="500"
-          /></label>
-          <div class="setting-field">
-            <span
-              ><strong>Move amount</strong
-              ><small>Pixels to feed forward or retract backward.</small></span
+        <div class="preferences-body">
+          <aside class="preferences-sidebar">
+            <button
+              :class="{ active: activePreferenceTab === 'printer' }"
+              @click="activePreferenceTab = 'printer'"
             >
-            <div class="inline-control">
-              <input
-                v-model.number="preferences.printer.manualFeed"
-                type="number"
-                min="1"
-                max="500"
-              /><button
-                class="secondary"
-                :disabled="!printerStatus.connected"
-                @click="retractPaper"
-              >
-                Retract</button
-              ><button
-                class="secondary"
-                :disabled="!printerStatus.connected"
-                @click="feedPaper"
-              >
-                Feed
-              </button>
-            </div>
-          </div>
-        </section>
-        <section class="settings-section">
-          <div class="section-heading">
-            <h3>Notifications</h3>
-            <p>Choose which printer events should interrupt you.</p>
-          </div>
-          <label class="toggle-row"
-            ><span
-              ><strong>Notifications</strong
-              ><small>Master switch for UwuPrint alerts</small></span
-            ><input v-model="preferences.notifications.enabled" type="checkbox"
-          /></label>
-          <div
-            :class="[
-              'notification-options',
-              { disabled: !preferences.notifications.enabled },
-            ]"
-          >
-            <label
-              v-for="[key, label] in [
-                ['lowBattery', 'Low battery'],
-                ['paper', 'Out of paper'],
-                ['lid', 'Lid open'],
-                ['temperature', 'Printer too hot'],
-                ['printComplete', 'Print complete'],
-              ]"
-              :key="key"
-              class="toggle-row"
-              ><span>{{ label }}</span
-              ><input
-                v-model="preferences.notifications[key]"
-                :disabled="!preferences.notifications.enabled"
-                type="checkbox"
-            /></label>
-          </div>
-        </section>
-        <footer class="settings-footer">
-          <button class="secondary" @click="showSettings = false">Done</button>
-        </footer>
-      </section>
-    </div>
-    <div v-if="showAdvanced" class="modal-backdrop">
-      <section class="modal settings">
-        <div class="modal-header">
-          <div>
-            <h2>Advanced settings</h2>
-            <p>Transport controls. Defaults are recommended.</p>
-          </div>
-          <button class="icon-button" @click="showAdvanced = false">×</button>
-        </div>
-        <section class="settings-section">
-          <div class="section-heading">
-            <h3>Bluetooth transport</h3>
-            <p>These affect data delivery, not image processing.</p>
-          </div>
-          <label class="setting-field"
-            ><span
-              ><strong>Packet delay</strong
-              ><small
-                >Pause between Bluetooth chunks. Increase it if prints are
-                incomplete or scrambled.</small
-              ></span
+              🖨 Printer
+            </button>
+            <button
+              :class="{ active: activePreferenceTab === 'connection' }"
+              @click="activePreferenceTab = 'connection'"
             >
-            <div class="inline-control">
-              <input
-                v-model.number="preferences.advanced.chunkDelay"
-                type="number"
-                min="0"
-                max="500"
-              /><span class="unit">ms</span>
-            </div></label
-          ><label class="toggle-row"
-            ><span
-              ><strong>Pause countdown on mouse movement</strong
-              ><small
-                >Pause auto-continue after the pointer moves more than
-                10px.</small
-              ></span
-            ><input
-              v-model="preferences.queue.cancelCountdownOnMouseMove"
-              type="checkbox"
-          /></label>
-          ><label class="setting-field"
-            ><span
-              ><strong>Disconnect after printing</strong
-              ><small
-                >Automatically disconnect after the most recent print.</small
-              ></span
-            ><select v-model.number="preferences.advanced.disconnectAfter">
-              <option :value="0">Never</option>
-              <option :value="30">30 seconds</option>
-              <option :value="60">1 minute</option>
-              <option :value="300">5 minutes (default)</option>
-              <option :value="900">15 minutes</option>
-            </select></label
-          >
-        </section>
-        <footer class="settings-footer">
-          <button class="secondary" @click="showAdvanced = false">Done</button>
-        </footer>
+              🔌 Connection
+            </button>
+            <button
+              :class="{ active: activePreferenceTab === 'notifications' }"
+              @click="activePreferenceTab = 'notifications'"
+            >
+              🔔 Notifications
+            </button>
+            <button
+              :class="{ active: activePreferenceTab === 'advanced' }"
+              @click="activePreferenceTab = 'advanced'"
+            >
+              ⚙️ Advanced
+            </button>
+          </aside>
+          <main class="preferences-content">
+            <template v-if="activePreferenceTab === 'printer'">
+              <section class="settings-section">
+                <div class="section-heading">
+                  <h3>Print quality</h3>
+                  <p>Balance darkness, detail, and printhead heat.</p>
+                </div>
+                <label class="setting-field"
+                  ><span
+                    ><strong>Print energy</strong
+                    ><small>Higher values print darker.</small></span
+                  ><input
+                    v-model.number="preferences.printer.energy"
+                    type="number"
+                    min="1"
+                    max="65535" /></label
+                ><label class="setting-field"
+                  ><span
+                    ><strong>Print density</strong
+                    ><small
+                      >Controls the printer’s dot concentration.</small
+                    ></span
+                  ><select v-model.number="preferences.printer.quality">
+                    <option :value="1">1 · Lightest</option>
+                    <option :value="2">2 · Light</option>
+                    <option :value="3">3 · Medium</option>
+                    <option :value="4">4 · Dark</option>
+                    <option :value="5">5 · Darkest</option>
+                  </select></label
+                >
+              </section>
+              <section class="settings-section">
+                <div class="section-heading">
+                  <h3>Paper movement</h3>
+                  <p>Move paper forward or backward by the selected amount.</p>
+                </div>
+                <label class="setting-field"
+                  ><span
+                    ><strong>Post-print feed</strong
+                    ><small>Extra paper after each image.</small></span
+                  ><input
+                    v-model.number="preferences.printer.postFeed"
+                    type="number"
+                    min="0"
+                    max="500"
+                /></label>
+                <div class="setting-field">
+                  <span
+                    ><strong>Move amount</strong
+                    ><small
+                      >Pixels to feed forward or retract backward.</small
+                    ></span
+                  >
+                  <div class="inline-control">
+                    <input
+                      v-model.number="preferences.printer.manualFeed"
+                      type="number"
+                      min="1"
+                      max="500"
+                    /><button
+                      class="secondary"
+                      :disabled="!printerStatus.connected"
+                      @click="retractPaper"
+                    >
+                      Retract</button
+                    ><button
+                      class="secondary"
+                      :disabled="!printerStatus.connected"
+                      @click="feedPaper"
+                    >
+                      Feed
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </template>
+            <template v-if="activePreferenceTab === 'connection'">
+              <section class="settings-section">
+                <div class="section-heading">
+                  <h3>Startup behavior</h3>
+                  <p>Choose what happens when UwuPrint opens.</p>
+                </div>
+                <label class="toggle-row"
+                  ><span
+                    ><strong>Connect to last printer on startup</strong
+                    ><small
+                      >Reconnect automatically when a remembered printer is
+                      nearby.</small
+                    ></span
+                  ><input
+                    v-model="preferences.autoConnectOnStartup"
+                    type="checkbox"
+                /></label>
+              </section>
+              <section class="settings-section">
+                <div class="section-heading">
+                  <h3>Disconnect</h3>
+                  <p>Manage connection lifecycle.</p>
+                </div>
+                <label class="setting-field"
+                  ><span
+                    ><strong>Disconnect after printing</strong
+                    ><small
+                      >Automatically disconnect after the most recent
+                      print.</small
+                    ></span
+                  ><select
+                    v-model.number="preferences.advanced.disconnectAfter"
+                  >
+                    <option :value="0">Never</option>
+                    <option :value="30">30 seconds</option>
+                    <option :value="60">1 minute</option>
+                    <option :value="300">5 minutes (default)</option>
+                    <option :value="900">15 minutes</option>
+                  </select></label
+                >
+              </section>
+            </template>
+            <template v-if="activePreferenceTab === 'notifications'">
+              <section class="settings-section">
+                <div class="section-heading">
+                  <h3>Notifications</h3>
+                  <p>Choose which printer events should interrupt you.</p>
+                </div>
+                <label class="toggle-row"
+                  ><span
+                    ><strong>Notifications</strong
+                    ><small>Master switch for UwuPrint alerts</small></span
+                  ><input
+                    v-model="preferences.notifications.enabled"
+                    type="checkbox"
+                /></label>
+                <div
+                  :class="[
+                    'notification-options',
+                    { disabled: !preferences.notifications.enabled },
+                  ]"
+                >
+                  <label
+                    v-for="[key, label] in [
+                      ['lowBattery', 'Low battery'],
+                      ['paper', 'Out of paper'],
+                      ['lid', 'Lid open'],
+                      ['temperature', 'Printer too hot'],
+                      ['printComplete', 'Print complete'],
+                    ]"
+                    :key="key"
+                    class="toggle-row"
+                    ><span>{{ label }}</span
+                    ><input
+                      v-model="preferences.notifications[key]"
+                      :disabled="!preferences.notifications.enabled"
+                      type="checkbox"
+                  /></label>
+                </div>
+              </section>
+            </template>
+            <template v-if="activePreferenceTab === 'advanced'">
+              <section class="settings-section">
+                <div class="section-heading">
+                  <h3>Bluetooth transport</h3>
+                  <p>These affect data delivery, not image processing.</p>
+                </div>
+                <label class="setting-field"
+                  ><span
+                    ><strong>Packet delay</strong
+                    ><small
+                      >Pause between Bluetooth chunks. Increase it if prints are
+                      incomplete or scrambled.</small
+                    ></span
+                  >
+                  <div class="inline-control">
+                    <input
+                      v-model.number="preferences.advanced.chunkDelay"
+                      type="number"
+                      min="0"
+                      max="500"
+                    /><span class="unit">ms</span>
+                  </div></label
+                ><label class="toggle-row"
+                  ><span
+                    ><strong>Pause countdown on mouse movement</strong
+                    ><small
+                      >Pause auto-continue after the pointer moves more than
+                      10px.</small
+                    ></span
+                  ><input
+                    v-model="preferences.queue.cancelCountdownOnMouseMove"
+                    type="checkbox"
+                /></label>
+              </section>
+            </template>
+          </main>
+        </div>
       </section>
     </div>
-    <div v-if="showContinue" class="modal-backdrop">
+    <div v-if="showContinue" class="modal-backdrop" @click.self="cancelQueue">
       <section class="modal print-dialog">
         <h2>Ready for the next image?</h2>
         <p>
@@ -1066,8 +1091,10 @@ onBeforeUnmount(() => {
 </template>
 
 <style>
+/* App specific structural adjustments */
 .device-row > span:first-child {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 2px;
   flex: 1;
 }
@@ -1079,121 +1106,182 @@ onBeforeUnmount(() => {
 }
 .status-refresh {
   align-self: center;
-  margin: 10px 14px;
-  padding: 7px 10px;
-  font-size: 12px;
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 11px;
   white-space: nowrap;
 }
-.settings {
-  width: min(680px, 100%);
+.preferences-modal {
+  width: 760px;
+  height: 560px;
+  max-width: 95vw;
+  max-height: 95vh;
   padding: 0;
+  display: flex;
+  flex-direction: column;
 }
-.settings .modal-header {
-  padding: 22px 24px 16px;
-  border-bottom: 1px solid #eee9f0;
+.preferences-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--sys-border);
+  background: var(--sys-sidebar-bg);
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.preferences-header h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+.preferences-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+}
+.preferences-sidebar {
+  width: 180px;
+  background: var(--sys-sidebar-bg);
+  border-right: 1px solid var(--sys-border);
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+.preferences-sidebar button {
+  background: transparent;
+  color: var(--sys-text-primary);
+  text-align: left;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  border: none;
+  box-shadow: none;
+}
+.preferences-sidebar button:hover:not(:disabled) {
+  background: var(--sys-sidebar-hover);
+}
+.preferences-sidebar button.active {
+  background: var(--sys-sidebar-active);
+}
+.preferences-content {
+  flex: 1;
+  background: var(--sys-content-bg);
+  overflow-y: auto;
+  min-height: 0;
+  height: 100%;
 }
 .settings-section {
-  padding: 20px 24px 0;
+  padding: 20px 20px 0;
 }
 .settings-section + .settings-section {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid #eee9f0;
+  border-top: 1px solid var(--sys-border);
 }
 .section-heading h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 600;
 }
 .section-heading p {
-  margin: 4px 0 13px;
+  margin: 4px 0 12px;
+  color: var(--sys-text-secondary);
 }
 .setting-field {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 210px;
+  display: flex;
   align-items: center;
-  gap: 18px;
+  justify-content: space-between;
+  gap: 16px;
   padding: 12px 0;
-  border-top: 1px solid #f0ebf2;
+  flex-wrap: wrap;
 }
 .setting-field > span {
-  display: grid;
-  gap: 3px;
-  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  flex: 1 1 200px;
 }
 .setting-field small {
-  color: #938998;
+  color: var(--sys-text-secondary);
   font-size: 11px;
 }
 .setting-field input,
-.setting-field select {
-  width: 100%;
-  padding: 8px 9px;
-  border: 1px solid #dcd4df;
-  border-radius: 7px;
-  background: white;
+.setting-field select,
+.inline-control {
+  flex-shrink: 1;
+  width: 200px;
+  max-width: 100%;
 }
+.setting-field input,
+.setting-field select {
+  padding: 6px 8px;
+  border: 1px solid var(--sys-control-border);
+  border-radius: 6px;
+  background: var(--sys-control-bg);
+}
+.setting-field + .setting-field,
+.setting-field + .toggle-row,
+.toggle-row + .setting-field,
+.toggle-row + .toggle-row,
+.setting-field + .notification-options,
+.toggle-row + .notification-options {
+  border-top: 1px solid var(--sys-border);
+}
+
 .inline-control {
   display: flex;
   gap: 8px;
 }
 .inline-control button {
-  padding: 8px 12px;
+  padding: 6px 12px;
 }
-.settings .toggle-row {
-  padding: 13px 0;
-}
-.settings-footer {
+.preferences-content .toggle-row {
+  padding: 12px 0;
   display: flex;
-  justify-content: flex-end;
-  margin-top: 20px;
-  padding: 16px 24px;
-  border-top: 1px solid #eee9f0;
-  background: #fbf9fc;
+  justify-content: space-between;
+  align-items: center;
 }
-.settings-footer button {
-  padding: 8px 16px;
+.toggle-row > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  flex: 1;
+}
+.toggle-row input {
+  flex-shrink: 0;
+}
+.toggle-row small {
+  color: var(--sys-text-secondary);
+  font-size: 11px;
 }
 .unit {
   align-self: center;
-  color: #827884;
+  color: var(--sys-text-secondary);
   font-size: 12px;
-}
-.paper-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 26px;
-  background: #fbf9fc;
-  border-bottom: 1px solid #e8e2ea;
-  font-size: 13px;
-  color: #62596a;
-}
-.paper-toolbar input {
-  width: 72px;
-  padding: 6px;
-  border: 1px solid #dcd4df;
-  border-radius: 6px;
-}
-.paper-toolbar button {
-  padding: 7px 11px;
 }
 .progress {
   margin-top: 12px;
-  font-size: 12px;
-  color: #675d6b;
+  font-size: 11px;
+  color: var(--sys-text-secondary);
 }
 .progress > div {
-  height: 6px;
+  height: 4px;
   margin-top: 6px;
   overflow: hidden;
-  border-radius: 5px;
-  background: #e9e2ef;
+  border-radius: 2px;
+  background: var(--sys-border);
 }
 .progress i {
   display: block;
   height: 100%;
-  border-radius: 5px;
-  background: #7b3ff2;
+  border-radius: 2px;
+  background: var(--sys-accent);
   transition: width 0.15s;
 }
 .print-dialog footer {
@@ -1203,17 +1291,17 @@ onBeforeUnmount(() => {
   margin-top: 20px;
 }
 .print-dialog {
-  width: min(440px, calc(100vw - 32px));
+  width: min(400px, calc(100vw - 32px));
 }
 .next-preview {
   display: block;
   width: min(100%, 260px);
   max-height: 230px;
-  margin: 18px auto 10px;
+  margin: 16px auto 8px;
   object-fit: contain;
   image-rendering: pixelated;
-  border: 1px solid #e8e2ea;
-  border-radius: 8px;
+  border: 1px solid var(--sys-border);
+  border-radius: 6px;
   background: #fff;
 }
 .job-motion {
@@ -1222,33 +1310,13 @@ onBeforeUnmount(() => {
   gap: 8px;
   margin-top: 12px;
 }
-.controls-heading,
-.queue-header > div {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.controls-heading {
-  justify-content: space-between;
-}
-.clear-link {
-  padding: 2px 0;
-  border: 0;
-  background: transparent;
-  color: #7557a2;
-  font-size: 12px;
-}
-.clear-link:hover {
-  background: transparent;
-  color: #55269d;
-  text-decoration: underline;
-}
 .queue-actions {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: auto;
   font-size: 12px;
-  color: #675d6b;
+  color: var(--sys-text-primary);
 }
 .queue-actions label {
   display: flex;
@@ -1258,23 +1326,25 @@ onBeforeUnmount(() => {
 .post-feed-toggle {
   display: flex !important;
   align-items: center;
-  gap: 7px;
-  margin: 14px 0 !important;
+  gap: 6px;
+  margin: 12px 0 !important;
 }
 .post-feed-toggle input {
   width: auto !important;
 }
 .post-feed-toggle small {
-  color: #938998;
+  color: var(--sys-text-secondary);
 }
 .margin-shortcut {
-  padding: 1px 5px;
+  padding: 2px 4px;
   background: transparent;
-  color: #7557a2;
-  font-size: 13px;
+  color: var(--sys-accent);
+  font-size: 12px;
+  border: none;
+  box-shadow: none;
 }
 .queue-actions small {
-  color: #938998;
+  color: var(--sys-text-secondary);
 }
 .queue {
   position: relative;
@@ -1283,41 +1353,22 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 .image-list {
-  overflow: auto;
-  padding-bottom: 170px;
+  overflow-y: auto;
+  padding-bottom: 150px;
 }
 .bottom-actions {
   position: absolute;
-  inset: auto 0 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
   margin: 0;
-  padding: 14px 18px 18px;
-  background: #fff;
-  border-top: 1px solid #e8e2ea;
-  box-shadow: 0 -8px 20px #34263a08;
-}
-.bottom-actions button:first-child {
-  background: #eee9f1;
-  color: #44394b;
+  padding: 12px 16px;
+  background: rgba(245, 245, 247, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--sys-border);
 }
 .device-row.connecting {
-  background: #f2edff;
-  color: #5f2cc8;
-  opacity: 1;
-}
-.spinner {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-right: 6px;
-  vertical-align: -2px;
-  border: 2px solid #d6c6fa;
-  border-top-color: #7040d5;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  background: var(--sys-sidebar-active);
+  color: var(--sys-accent);
 }
 </style>

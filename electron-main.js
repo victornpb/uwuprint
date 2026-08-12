@@ -5,6 +5,7 @@ const {
   dialog,
   ipcMain,
   Notification,
+  systemPreferences,
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -238,6 +239,20 @@ ipcMain.handle("cancel-bluetooth-selection", () => {
 
 ipcMain.handle("show-notification", (_event, { title, body }) => {
   if (Notification.isSupported()) new Notification({ title, body }).show();
+});
+
+ipcMain.handle("get-accent-color", () => {
+  try {
+    return `#${systemPreferences.getAccentColor()}`;
+  } catch (e) {
+    return "#007aff";
+  }
+});
+
+systemPreferences.on("accent-color-changed", (event, newColor) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("accent-color-changed", `#${newColor}`);
+  }
 });
 
 app.on("second-instance", (_event, argv) => {

@@ -16,4 +16,7 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.invoke("cancel-bluetooth-selection"),
   showNotification: (notification) =>
     ipcRenderer.invoke("show-notification", notification),
+  getAccentColor: () => ipcRenderer.invoke("get-accent-color"),
+  onAccentColorChanged: (callback) =>
+    ipcRenderer.on("accent-color-changed", (_event, color) => callback(color)),
 });
