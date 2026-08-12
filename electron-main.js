@@ -309,6 +309,10 @@ async function renderImage(inputPath, options = {}) {
   }
   let image = sharp(inputPath, { animated: false });
   const metadata = await image.metadata();
+  const originalPreview = await sharp(inputPath, { animated: false })
+    .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+    .png()
+    .toBuffer();
   if (options.crop?.width > 0 && options.crop?.height > 0) {
     const left = clamp(
       Math.round(options.crop.left || 0),
@@ -382,6 +386,7 @@ async function renderImage(inputPath, options = {}) {
     width: 384,
     height: info.height,
     preview: `data:image/png;base64,${png.toString("base64")}`,
+    original: `data:image/png;base64,${originalPreview.toString("base64")}`,
   };
 }
 
@@ -520,6 +525,7 @@ ipcMain.handle("render-image", async (_event, inputPath, options) => {
   const result = await renderImage(inputPath, options);
   return {
     preview: result.preview,
+    original: result.original,
     pixels: result.pixels.toString("base64"),
     width: result.width,
     height: result.height,

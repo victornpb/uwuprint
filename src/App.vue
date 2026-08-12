@@ -12,6 +12,8 @@ import { BlePrinter } from "./ble-printer.js";
 const images = ref([]);
 const appInfo = ref({ name: "App", slug: "app", tagline: "", version: "" });
 const selectedId = ref(null);
+const activeWorkspaceTab = ref("preview");
+const originalCanvas = ref(null);
 const processing = ref(false);
 const printing = ref(false);
 const printProgress = ref(0);
@@ -170,6 +172,65 @@ const previewMarginStyle = computed(() => ({
     ? `${preferences.value.printer.marginBottom}px`
     : "0px",
 }));
+const queuePreviewGap = computed(() =>
+  queueOptions.value.feedBetween
+    ? Number(preferences.value.printer.marginBetween) || 0
+    : 0,
+);
+const queuePreviewSize = computed(() => {
+  const items = queueItems.value;
+  const top = preferences.value.printer.marginTopEnabled
+    ? Number(preferences.value.printer.marginTop) || 0
+    : 0;
+  const between = queueOptions.value.feedBetween
+    ? (Number(preferences.value.printer.marginBetween) || 0) * Math.max(0, items.length - 1)
+    : (preferences.value.printer.marginBottomEnabled
+        ? Number(preferences.value.printer.marginBottom) || 0
+        : 0) * items.length;
+  return {
+    width: 384,
+    height: items.reduce((total, { image }) => total + (Number(image.height) || 0) + top, between),
+  };
+});
+function queuePreviewPageStyle() {
+  return {
+    paddingTop: preferences.value.printer.marginTopEnabled
+      ? `${preferences.value.printer.marginTop}px`
+      : "0px",
+    paddingBottom:
+      !queueOptions.value.feedBetween && preferences.value.printer.marginBottomEnabled
+        ? `${preferences.value.printer.marginBottom}px`
+        : "0px",
+  };
+}
+async function ensureOriginalPreview(image) {
+  if (!image || image.original || image.originalLoading) return;
+  image.originalLoading = true;
+  image.originalError = null;
+  try {
+    // Every import path ultimately creates a local image path and uses the
+    // same renderer. Re-rendering here also upgrades images added before the
+    // Original payload was available.
+    await renderImage(image);
+    if (!image.original)
+      throw new Error("The original image could not be loaded.");
+  } catch (error) {
+    image.originalError = error.message;
+  } finally {
+    image.originalLoading = false;
+  }
+}
+async function drawOriginalCanvas() {
+  const image = selected.value;
+  const canvas = originalCanvas.value;
+  if (!image || !canvas || !image.original) return;
+  const source = new Image();
+  source.src = image.original;
+  await source.decode();
+  canvas.width = source.naturalWidth;
+  canvas.height = source.naturalHeight;
+  canvas.getContext("2d").drawImage(source, 0, 0);
+}
 function savePreferences() {
   localStorage.setItem(
     "uwuprint-preferences",
@@ -223,6 +284,9 @@ function addImages(paths) {
         name: path.split("/").pop(),
         options: defaults(),
         preview: null,
+        original: null,
+        originalLoading: false,
+        originalError: null,
         pixels: null,
         width: 0,
         height: 0,
@@ -627,6 +691,22 @@ function scheduleDisconnect() {
 
 watch(preferences, savePreferences, { deep: true });
 watch(() => selected.value?.id, renderSelected);
+watch(
+  () => [activeWorkspaceTab.value, selected.value?.id],
+  ([tab]) => {
+    if (tab === "original") {
+      void ensureOriginalPreview(selected.value).then(() => nextTick(drawOriginalCanvas));
+    }
+  },
+);
+watch(() => selected.value?.original, () => nextTick(drawOriginalCanvas));
+watch(
+  () => queueItems.value.length,
+  (count) => {
+    if (count < 2 && activeWorkspaceTab.value === "preview-all")
+      activeWorkspaceTab.value = "preview";
+  },
+);
 watch(() => selected.value?.options, renderSelected, { deep: true });
 watch(
   [() => printerStatus.value.connected, printing, () => images.value.length],
@@ -713,6 +793,27 @@ onBeforeUnmount(() => {
         <h1>{{ appInfo.name }}</h1>
         <p>{{ appInfo.tagline }}</p>
       </div>
+      <nav class="workspace-tabs" aria-label="Workspace view">
+        <button
+          :class="{ active: activeWorkspaceTab === 'original' }"
+          @click="activeWorkspaceTab = 'original'; ensureOriginalPreview(selected).then(() => nextTick(drawOriginalCanvas))"
+        >
+          Original
+        </button>
+        <button
+          :class="{ active: activeWorkspaceTab === 'preview' }"
+          @click="activeWorkspaceTab = 'preview'"
+        >
+          Preview
+        </button>
+        <button
+          v-if="queueItems.length > 1"
+          :class="{ active: activeWorkspaceTab === 'preview-all' }"
+          @click="activeWorkspaceTab = 'preview-all'"
+        >
+          Preview all
+        </button>
+      </nav>
       <div class="connection">
         <button class="connection-badge" @click="openPicker">
           <span :class="['dot', { connected: printerStatus.connected }]" />
@@ -822,7 +923,22 @@ onBeforeUnmount(() => {
         </div>
       </aside>
       <section class="workspace">
-        <div v-if="selected" class="preview-card">
+        <div v-if="activeWorkspaceTab === 'original' && selected" class="preview-card edit-card">
+          <div class="preview-title">
+            <span
+              >Original image</span
+            ><span>{{ selected.name }}</span>
+          </div>
+          <div class="editing-canvas">
+            <canvas v-if="selected.original" ref="originalCanvas" aria-label="Original image canvas" />
+            <span v-else-if="selected.originalLoading" class="queue-preview-loading">Loading original…</span>
+            <div v-else class="original-preview-error">
+              <span>{{ selected.originalError || 'Original preview is not ready yet.' }}</span>
+              <button class="secondary" @click="ensureOriginalPreview(selected)">Try again</button>
+            </div>
+          </div>
+        </div>
+        <div v-else-if="activeWorkspaceTab === 'preview' && selected" class="preview-card">
           <div class="preview-title">
             <span
               >Print preview · {{ selected.width || 384 }} ×
@@ -835,6 +951,34 @@ onBeforeUnmount(() => {
               :src="selected.preview"
               alt="Processed thermal print preview"
             />
+          </div>
+        </div>
+        <div v-else-if="activeWorkspaceTab === 'preview-all'" class="preview-all-card">
+          <div class="preview-title">
+            <span>Queue preview · {{ queueItems.length }} items</span>
+            <span>Total · {{ queuePreviewSize.width }} × {{ queuePreviewSize.height || '…' }} px</span>
+          </div>
+          <div class="queue-preview-scroll">
+            <div class="queue-preview-strip">
+              <template v-for="(item, index) in queueItems" :key="`${item.image.id}-${item.copyIndex}`">
+                <div class="queue-preview-page" :style="queuePreviewPageStyle()">
+                  <img
+                    v-if="item.image.preview"
+                    :src="item.image.preview"
+                    :alt="`Processed preview for ${item.image.name}`"
+                  />
+                  <span v-else class="queue-preview-loading">Processing…</span>
+                </div>
+                <div
+                  v-if="index < queueItems.length - 1"
+                  class="queue-preview-break"
+                  :class="{ 'has-margin': queuePreviewGap > 0 }"
+                  :style="{ height: `${queuePreviewGap}px` }"
+                >
+                  <span v-if="queueOptions.pause" class="pause-marker">Pause</span>
+                </div>
+              </template>
+            </div>
           </div>
         </div>
         <div v-else class="empty canvas-empty">Add an image to start.</div>
