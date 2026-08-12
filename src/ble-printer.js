@@ -160,6 +160,10 @@ export class BlePrinter {
     const quality = Number(settings.quality);
     const speed = Number(settings.speed);
     this.onProgress(0);
+    const topFeed = settings.marginTopEnabled
+      ? Math.max(0, Math.min(500, Number(settings.marginTop) || 0))
+      : 0;
+    if (topFeed) await this.send(buildFeedData(topFeed), settings.chunkDelay);
     await this.send(
       buildPrintData(rows, energy, { quality, speed }),
       settings.chunkDelay,

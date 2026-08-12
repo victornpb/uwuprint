@@ -49,7 +49,12 @@ const preferences = ref(
           energy: 39321,
           quality: 5,
           speed: 0,
-          postFeed: 55,
+          marginTop: 10,
+          marginTopEnabled: false,
+          marginBottom: 50,
+          marginBottomEnabled: true,
+          marginBetween: 50,
+          marginUnits: "px",
           manualFeed: 20,
         },
         advanced: { chunkDelay: 20, disconnectAfter: 300, connectTimeout: 15 },
@@ -69,10 +74,18 @@ preferences.value.printer = {
   energy: 39321,
   quality: 5,
   speed: 0,
-  postFeed: 55,
+  marginTop: 10,
+  marginTopEnabled: false,
+  marginBottom: 50,
+  marginBottomEnabled: true,
+  marginBetween: 50,
+  marginUnits: "px",
+  ...(preferences.value.printer?.postFeed !== undefined ? { marginBottom: preferences.value.printer.postFeed } : {}),
   manualFeed: 20,
   ...(preferences.value.printer || {}),
 };
+if (preferences.value.printer.marginBottomEnabled === undefined)
+  preferences.value.printer.marginBottomEnabled = true;
 preferences.value.advanced = {
   chunkDelay: 20,
   disconnectAfter: 300, connectTimeout: 15,
@@ -128,6 +141,26 @@ function setRemembered(name, remember) {
   rememberedDevices.value = remember ? [...new Set([...rememberedDevices.value, normalizedName])] : rememberedDevices.value.filter((item) => item !== normalizedName);
   localStorage.setItem("uwuprint-remembered-devices", JSON.stringify(rememberedDevices.value));
 }
+const PIXELS_PER_MM = 8;
+function marginDisplay(key) {
+  const value = Number(preferences.value.printer[key]) || 0;
+  return preferences.value.printer.marginUnits === "mm" ? Number((value / PIXELS_PER_MM).toFixed(1)) : value;
+}
+function setMargin(key, event) {
+  const value = Math.max(0, Number(event.target.value) || 0);
+  preferences.value.printer[key] = Math.round(preferences.value.printer.marginUnits === "mm" ? value * PIXELS_PER_MM : value);
+}
+function marginLabel(key) {
+  return `${marginDisplay(key)} ${preferences.value.printer.marginUnits}`;
+}
+const previewMarginStyle = computed(() => ({
+  paddingTop: preferences.value.printer.marginTopEnabled
+    ? `${preferences.value.printer.marginTop}px`
+    : "0px",
+  paddingBottom: preferences.value.printer.marginBottomEnabled
+    ? `${preferences.value.printer.marginBottom}px`
+    : "0px",
+}));
 function savePreferences() {
   localStorage.setItem(
     "uwuprint-preferences",
@@ -398,7 +431,16 @@ async function printSelected() {
       {
         ...preferences.value.printer,
         chunkDelay: preferences.value.advanced.chunkDelay,
-        postFeedEnabled: postFeedForPrint.value,
+        postFeed: (queueOptions.value.feedBetween ? postFeedForPrint.value : preferences.value.printer.marginBottomEnabled)
+          ? queueOptions.value.feedBetween
+            ? preferences.value.printer.marginBetween
+            : preferences.value.printer.marginBottom
+          : 0,
+        marginTopEnabled: preferences.value.printer.marginTopEnabled,
+        marginTop: preferences.value.printer.marginTop,
+        postFeedEnabled: queueOptions.value.feedBetween
+          ? postFeedForPrint.value
+          : preferences.value.printer.marginBottomEnabled,
       },
     );
     updatePrinterStatus({ ...printerStatus.value, message: "Print complete" });
@@ -762,15 +804,8 @@ onBeforeUnmount(() => {
               <option :value="30">30 sec</option>
             </select></label
           ><label
-            ><input v-model="queueOptions.feedBetween" type="checkbox" /> Feed
-            between items <small>{{ preferences.printer.postFeed }} px</small
-            ><button
-              class="margin-shortcut"
-              title="Edit print margin"
-              @click.prevent="openMarginSettings"
-            >
-              ⚙
-            </button></label
+            ><input v-model="queueOptions.feedBetween" type="checkbox" /> Margin
+            between pages <span class="margin-input"><input :value="marginDisplay('marginBetween')" @input="setMargin('marginBetween', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></span></label
           ><button :disabled="printing" @click="printAll">Print all</button>
         </div>
       </aside>
@@ -782,7 +817,7 @@ onBeforeUnmount(() => {
               {{ selected.height || "…" }}</span
             ><span v-if="processing">Processing…</span>
           </div>
-          <div class="paper">
+          <div class="paper" :style="previewMarginStyle">
             <img
               v-if="selected.preview"
               :src="selected.preview"
@@ -827,17 +862,11 @@ onBeforeUnmount(() => {
             <option value="floyd-steinberg">Floyd–Steinberg</option>
             <option value="threshold">Threshold</option>
           </select></label
-        ><label class="post-feed-toggle"
-          ><input v-model="postFeedForPrint" type="checkbox" /> Feed paper after
-          print <small>{{ preferences.printer.postFeed }} px</small
-          ><button
-            class="margin-shortcut"
-            title="Edit print margin"
-            @click.prevent="openMarginSettings"
-          >
-            ⚙
-          </button></label
-        ><button
+        ><div class="main-margin-controls">
+          <div class="controls-heading"><strong>Print margins</strong><small>{{ preferences.printer.marginUnits }}</small></div>
+          <label><span><input v-model="preferences.printer.marginTopEnabled" type="checkbox" /> Top</span><span class="margin-input"><input :value="marginDisplay('marginTop')" @input="setMargin('marginTop', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></span></label>
+          <label><span><input v-model="preferences.printer.marginBottomEnabled" type="checkbox" /> Bottom</span><span class="margin-input"><input :value="marginDisplay('marginBottom')" @input="setMargin('marginBottom', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></span></label>
+        </div><button
           class="print"
           :disabled="processing || printing"
           @click="printSelected"
@@ -1028,15 +1057,17 @@ onBeforeUnmount(() => {
                   <p>Move paper forward or backward by the selected amount.</p>
                 </div>
                 <label class="setting-field"
-                  ><span
-                    ><strong>Post-print feed</strong
-                    ><small>Extra paper after each image.</small></span
-                  ><input
-                    v-model.number="preferences.printer.postFeed"
-                    type="number"
-                    min="0"
-                    max="500"
-                /></label>
+                  ><span><strong>Print margins</strong><small>Top, bottom, and between-page margins.</small></span
+                  ><span class="margin-settings">
+                    <label class="inline-toggle"><input v-model="preferences.printer.marginTopEnabled" type="checkbox" /> Top</label>
+                    <input :value="marginDisplay('marginTop')" @input="setMargin('marginTop', $event)" type="number" min="0" max="500" aria-label="Top margin" />
+                    <label class="inline-toggle"><input v-model="preferences.printer.marginBottomEnabled" type="checkbox" /> Bottom</label>
+                    <input :value="marginDisplay('marginBottom')" @input="setMargin('marginBottom', $event)" type="number" min="0" max="500" aria-label="Bottom margin" />
+                  </span>
+                </label>
+                <div class="margin-labels"><span>Top</span><span>Bottom</span></div>
+                <label class="setting-field"><span><strong>Between pages</strong><small>Feed this amount between queued images.</small></span><span class="margin-input"><input :value="marginDisplay('marginBetween')" @input="setMargin('marginBetween', $event)" type="number" min="0" max="500" aria-label="Between pages margin" /><em>{{ preferences.printer.marginUnits }}</em></span></label>
+                <label class="setting-field"><span><strong>Margin units</strong><small>Choose how margin values are displayed.</small></span><select v-model="preferences.printer.marginUnits"><option value="px">Pixels</option><option value="mm">Millimetres</option></select></label>
                 <div class="setting-field">
                   <span
                     ><strong>Move amount</strong
@@ -1527,5 +1558,25 @@ onBeforeUnmount(() => {
 .device-row.connecting {
   background: var(--sys-sidebar-active);
   color: var(--sys-accent);
+}
+.margin-settings {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.margin-settings input {
+  width: 64px;
+}
+.inline-toggle {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.margin-labels {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  margin: -8px 0 10px 130px;
+  color: var(--sys-text-secondary);
+  font-size: 11px;
 }
 </style>

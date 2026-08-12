@@ -424,8 +424,8 @@ button.clear-link:hover {
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.08),
     0 0 1px rgba(0, 0, 0, 0.2);
-  padding: 16px;
-  min-height: 140px;
+  padding: 0;
+  min-height: 0;
   border-radius: 2px;
 }
 
@@ -433,6 +433,53 @@ button.clear-link:hover {
   width: 100%;
   display: block;
   image-rendering: pixelated;
+}
+
+.main-margin-controls {
+  margin: 12px 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--sys-border);
+  border-bottom: 1px solid var(--sys-border);
+}
+.main-margin-controls .controls-heading {
+  margin-bottom: 8px;
+}
+.main-margin-controls .controls-heading small {
+  color: var(--sys-text-secondary);
+  font-weight: 400;
+}
+.main-margin-controls label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 6px 0;
+  font-size: 12px;
+}
+.main-margin-controls label input[type="number"] {
+  width: 72px;
+}
+.margin-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.margin-input input {
+  width: 64px;
+}
+.margin-input em,
+.unit-link {
+  color: var(--sys-text-secondary);
+  font-size: 11px;
+  font-style: normal;
+}
+.unit-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 /* --- CONTROLS (INSPECTOR) --- */
