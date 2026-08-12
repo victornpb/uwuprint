@@ -425,7 +425,7 @@ async function runBLE() {
         //     await delay(500);
         // }, 5000);
 
-        return async function send(data) {
+        const send = async (data) => {
             console.log(`⏳ Sending ${data.length} bytes of data in chunks of ${chunkSize} bytes...`);
             const chunks = chunkify(data, chunkSize);
             for (const chunk of chunks) {
@@ -437,7 +437,16 @@ async function runBLE() {
             }
             console.log(`✅ Done.`);
             await delay(CHUNK_DELAY_MS);
-        }
+        };
+
+        const disconnect = async () => {
+            if (peripheral.state === 'connected') {
+                await peripheral.disconnectAsync();
+                console.log('Disconnected.');
+            }
+        };
+
+        return { send, disconnect };
     } catch (err) {
         console.error(`🛑 ${err.message}`, err);
     }
@@ -534,20 +543,24 @@ async function main() {
                 const data = msgsPrintImg(binarizedImg, true, 0xfff * 0);
                 
                 if (!dry) {
-                    const send = await runBLE();
+                    const printer = await runBLE();
+                    if (!printer) {
+                        throw new Error('Could not connect to the printer.');
+                    }
 
-                    const power = 0.6;
-                    const printData = msgsPrintImg(binarizedImg, false, 0xffff * power | 0);
-                    await send(printData);
-                    await delay(2000);
-
-                    await send(msgFeedPaper(55));
+                    try {
+                        const power = 0.6;
+                        const printData = msgsPrintImg(binarizedImg, false, 0xffff * power | 0);
+                        await printer.send(printData);
+                        await delay(2000);
+                        await printer.send(msgFeedPaper(55));
+                    } finally {
+                        await printer.disconnect();
+                    }
                 } else {
                     console.log(`Dry run: Skipping printing process for ${path.basename(image)}`);
                 }
             }
-
-            process.exit(0);
         });
 
     program.parse(process.argv);
