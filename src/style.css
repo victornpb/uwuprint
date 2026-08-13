@@ -972,7 +972,7 @@ button.clear-link:hover {
 }
 
 .device-section {
-  padding: 0 20px 20px;
+  padding: 12px 20px 20px;
 }
 
 .device-section h3,
@@ -1004,7 +1004,7 @@ button.clear-link:hover {
   padding: 6px 0;
   border: none;
   box-shadow: none;
-  cursor: pointer;
+  cursor: default;
 }
 .section-toggle:hover {
   background: transparent;
