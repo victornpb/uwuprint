@@ -31,6 +31,8 @@ const showPicker = ref(false);
 const showPreferences = ref(false);
 const activePreferenceTab = ref("general");
 const showOtherDevices = ref(false);
+const hoveredMarginTarget = ref(null);
+const hoveredPauseTarget = ref(null);
 let resumeAfterConnect = null;
 const connecting = ref(false);
 function normalizedPrinterName(name) {
@@ -169,6 +171,12 @@ function setMargin(key, event) {
 function marginLabel(key) {
   return `${marginDisplay(key)} ${preferences.value.printer.marginUnits}`;
 }
+function marginHighlightHeight(key) {
+  return `${Number(preferences.value.printer[key]) || 0}px`;
+}
+const pauseMarkerLabel = computed(() =>
+  autoContinueSeconds.value ? `${autoContinueSeconds.value} SEC PAUSE` : "PAUSE",
+);
 const previewMarginStyle = computed(() => ({
   paddingTop: preferences.value.printer.marginTopEnabled
     ? `${preferences.value.printer.marginTop}px`
@@ -924,9 +932,15 @@ onBeforeUnmount(() => {
         </div>
         <div v-if="images.length" class="queue-actions bottom-actions">
           <label
+            @mouseenter="hoveredMarginTarget = 'between'"
+            @mouseleave="hoveredMarginTarget = null"
             ><input v-model="queueOptions.feedBetween" type="checkbox" /> Margin
             between pages <div class="margin-input"><input :value="marginDisplay('marginBetween')" @input="setMargin('marginBetween', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></div></label>
-          <label style="display: flex; flex-direction: column; align-items: stretch; gap: 6px;">
+          <label
+            style="display: flex; flex-direction: column; align-items: stretch; gap: 6px;"
+            @mouseenter="hoveredPauseTarget = 'pause'"
+            @mouseleave="hoveredPauseTarget = null"
+          >
             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
               <span style="display: flex; align-items: center; gap: 4px;">
                 <input v-model="queueOptions.pause" type="checkbox" />
@@ -973,6 +987,28 @@ onBeforeUnmount(() => {
             ><span v-if="processing">Processing…</span>
           </div>
           <div class="paper" :style="previewMarginStyle">
+            <span
+              v-if="hoveredMarginTarget === 'top' && preferences.printer.marginTopEnabled"
+              class="margin-overlay margin-overlay-top"
+              :style="{ height: marginHighlightHeight('marginTop') }"
+            />
+            <span
+              v-if="
+                hoveredMarginTarget === 'bottom' &&
+                preferences.printer.marginBottomEnabled
+              "
+              class="margin-overlay margin-overlay-bottom"
+              :style="{ height: marginHighlightHeight('marginBottom') }"
+            />
+            <span
+              v-if="
+                hoveredMarginTarget === 'between' &&
+                !queueOptions.feedBetween &&
+                preferences.printer.marginBottomEnabled
+              "
+              class="margin-overlay margin-overlay-bottom"
+              :style="{ height: marginHighlightHeight('marginBottom') }"
+            />
             <img
               v-if="selected.preview"
               :src="selected.preview"
@@ -989,6 +1025,28 @@ onBeforeUnmount(() => {
             <div class="queue-preview-strip">
               <template v-for="(item, index) in queueItems" :key="`${item.image.id}-${item.copyIndex}`">
                 <div class="queue-preview-page" :style="queuePreviewPageStyle()">
+                  <span
+                    v-if="hoveredMarginTarget === 'top' && preferences.printer.marginTopEnabled"
+                    class="margin-overlay margin-overlay-top"
+                    :style="{ height: marginHighlightHeight('marginTop') }"
+                  />
+                  <span
+                    v-if="
+                      hoveredMarginTarget === 'bottom' &&
+                      preferences.printer.marginBottomEnabled
+                    "
+                    class="margin-overlay margin-overlay-bottom"
+                    :style="{ height: marginHighlightHeight('marginBottom') }"
+                  />
+                  <span
+                    v-if="
+                    hoveredMarginTarget === 'between' &&
+                    !queueOptions.feedBetween &&
+                    preferences.printer.marginBottomEnabled
+                  "
+                    class="margin-overlay margin-overlay-between margin-overlay-between-page"
+                    :style="{ height: marginHighlightHeight('marginBottom') }"
+                  />
                   <img
                     v-if="item.image.preview"
                     :src="item.image.preview"
@@ -999,10 +1057,17 @@ onBeforeUnmount(() => {
                 <div
                   v-if="index < queueItems.length - 1"
                   class="queue-preview-break"
-                  :class="{ 'has-margin': queuePreviewGap > 0 }"
+                  :class="{
+                    'has-margin': queuePreviewGap > 0,
+                    'pause-hovered': hoveredPauseTarget === 'pause',
+                  }"
                   :style="{ height: `${queuePreviewGap}px` }"
                 >
-                  <span v-if="queueOptions.pause" class="pause-marker">Pause</span>
+                  <span
+                    v-if="hoveredMarginTarget === 'between' && queueOptions.feedBetween"
+                    class="margin-overlay margin-overlay-between"
+                  />
+                  <span v-if="queueOptions.pause" class="pause-marker">{{ pauseMarkerLabel }}</span>
                 </div>
               </template>
             </div>
@@ -1048,8 +1113,8 @@ onBeforeUnmount(() => {
             </select></label
           ><div class="main-margin-controls">
             <div class="controls-heading"><strong>Print margins</strong></div>
-            <label><span><input v-model="preferences.printer.marginTopEnabled" type="checkbox" /> Top</span><div class="margin-input"><input :value="marginDisplay('marginTop')" @input="setMargin('marginTop', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></div></label>
-            <label><span><input v-model="preferences.printer.marginBottomEnabled" type="checkbox" /> Bottom</span><div class="margin-input"><input :value="marginDisplay('marginBottom')" @input="setMargin('marginBottom', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></div></label>
+            <label @mouseenter="hoveredMarginTarget = 'top'" @mouseleave="hoveredMarginTarget = null"><span><input v-model="preferences.printer.marginTopEnabled" type="checkbox" /> Top</span><div class="margin-input"><input :value="marginDisplay('marginTop')" @input="setMargin('marginTop', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></div></label>
+            <label @mouseenter="hoveredMarginTarget = 'bottom'" @mouseleave="hoveredMarginTarget = null"><span><input v-model="preferences.printer.marginBottomEnabled" type="checkbox" /> Bottom</span><div class="margin-input"><input :value="marginDisplay('marginBottom')" @input="setMargin('marginBottom', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></div></label>
           </div>
           <div class="copies-control">
             <div class="controls-heading"><strong>Copies</strong></div>

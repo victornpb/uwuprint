@@ -528,6 +528,7 @@ button.clear-link:hover {
 }
 
 .paper {
+  position: relative;
   background: #fff;
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.08),
@@ -535,12 +536,42 @@ button.clear-link:hover {
   padding: 0;
   min-height: 0;
   border-radius: 2px;
+  overflow: hidden;
 }
 
 .paper img {
+  position: relative;
+  z-index: 1;
   width: 100%;
   display: block;
   image-rendering: pixelated;
+}
+
+.margin-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.margin-overlay-top {
+  top: 0;
+  background: color-mix(in srgb, var(--sys-accent) 28%, transparent);
+}
+
+.margin-overlay-bottom {
+  bottom: 0;
+  background: color-mix(in srgb, #ff9500 24%, transparent);
+}
+
+.margin-overlay-between {
+  inset: 0;
+  background: color-mix(in srgb, #af52de 24%, transparent);
+}
+
+.margin-overlay-between-page {
+  inset: auto 0 0;
 }
 
 .editing-canvas {
@@ -605,11 +636,16 @@ button.clear-link:hover {
 }
 
 .queue-preview-page {
+  position: relative;
   width: 100%;
   min-height: 20px;
+  z-index: 1;
+  background: #fff;
 }
 
 .queue-preview-page img {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   image-rendering: pixelated;
@@ -626,6 +662,12 @@ button.clear-link:hover {
   position: relative;
   width: 100%;
   flex-shrink: 0;
+  z-index: 0;
+}
+
+.queue-preview-break .margin-overlay-between {
+  z-index: 2;
+  pointer-events: none;
 }
 
 .queue-preview-break.has-margin {
@@ -635,16 +677,25 @@ button.clear-link:hover {
 .queue-preview-break:has(.pause-marker)::before {
   content: "";
   position: absolute;
-  z-index: 1;
+  z-index: 0;
   top: 50%;
-  left: 0;
-  right: 0;
-  border-top: 1px dashed var(--sys-text-secondary);
+  left: -1.25cm;
+  right: -1.25cm;
+  border-top: 1px dashed color-mix(in srgb, var(--sys-text-secondary) 70%, transparent);
+}
+
+.queue-preview-break.pause-hovered::before {
+  z-index: 3;
+  border-top-color: color-mix(in srgb, var(--sys-accent) 88%, white 12%);
+}
+
+.queue-preview-break.pause-hovered {
+  z-index: 4;
 }
 
 .pause-marker {
   position: absolute;
-  z-index: 2;
+  z-index: 3;
   top: 50%;
   left: calc(100% + 10px);
   transform: translateY(-50%);
@@ -655,6 +706,12 @@ button.clear-link:hover {
   font-weight: 600;
   letter-spacing: 0.4px;
   text-transform: uppercase;
+}
+
+.queue-preview-break.pause-hovered .pause-marker {
+  z-index: 4;
+  color: var(--sys-accent);
+  background: color-mix(in srgb, var(--sys-content-bg) 85%, var(--sys-accent) 15%);
 }
 
 .main-margin-controls {
