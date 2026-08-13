@@ -177,6 +177,12 @@ function marginLabel(key) {
 function marginHighlightHeight(key) {
   return `${Number(preferences.value.printer[key]) || 0}px`;
 }
+function isMarginPreviewTab() {
+  return activeWorkspaceTab.value === "preview" || activeWorkspaceTab.value === "preview-all";
+}
+function isHoveredMargin(target, enabled) {
+  return isMarginPreviewTab() && hoveredMarginTarget.value === target && enabled;
+}
 const pauseMarkerLabel = computed(() =>
   autoContinueSeconds.value ? `${autoContinueSeconds.value} SEC PAUSE` : "PAUSE",
 );
@@ -1001,23 +1007,13 @@ onBeforeUnmount(() => {
           </div>
           <div class="paper" :style="previewMarginStyle">
             <span
-              v-if="hoveredMarginTarget === 'top' && preferences.printer.marginTopEnabled"
+              v-if="isHoveredMargin('top', preferences.printer.marginTopEnabled)"
               class="margin-overlay margin-overlay-top"
               :style="{ height: marginHighlightHeight('marginTop') }"
             />
             <span
               v-if="
-                hoveredMarginTarget === 'bottom' &&
-                preferences.printer.marginBottomEnabled
-              "
-              class="margin-overlay margin-overlay-bottom"
-              :style="{ height: marginHighlightHeight('marginBottom') }"
-            />
-            <span
-              v-if="
-                hoveredMarginTarget === 'between' &&
-                !queueOptions.feedBetween &&
-                preferences.printer.marginBottomEnabled
+                isHoveredMargin('bottom', preferences.printer.marginBottomEnabled)
               "
               class="margin-overlay margin-overlay-bottom"
               :style="{ height: marginHighlightHeight('marginBottom') }"
@@ -1039,25 +1035,15 @@ onBeforeUnmount(() => {
               <template v-for="(item, index) in queueItems" :key="`${item.image.id}-${item.copyIndex}`">
                 <div class="queue-preview-page" :style="queuePreviewPageStyle()">
                   <span
-                    v-if="hoveredMarginTarget === 'top' && preferences.printer.marginTopEnabled"
+                    v-if="isHoveredMargin('top', preferences.printer.marginTopEnabled)"
                     class="margin-overlay margin-overlay-top"
                     :style="{ height: marginHighlightHeight('marginTop') }"
                   />
                   <span
                     v-if="
-                      hoveredMarginTarget === 'bottom' &&
-                      preferences.printer.marginBottomEnabled
+                      isHoveredMargin('bottom', preferences.printer.marginBottomEnabled)
                     "
                     class="margin-overlay margin-overlay-bottom"
-                    :style="{ height: marginHighlightHeight('marginBottom') }"
-                  />
-                  <span
-                    v-if="
-                    hoveredMarginTarget === 'between' &&
-                    !queueOptions.feedBetween &&
-                    preferences.printer.marginBottomEnabled
-                  "
-                    class="margin-overlay margin-overlay-between margin-overlay-between-page"
                     :style="{ height: marginHighlightHeight('marginBottom') }"
                   />
                   <img
