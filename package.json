@@ -1,9 +1,9 @@
 {
   "name": "uwuprint",
-  "prodName": "UwuPrint",
-  "prodTagline": "MX06 thermal printer",
+  "prodName": "uwuPrint",
+  "prodTagline": "Thermal printer driver",
   "productName": "UwuPrint",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "",
   "main": "electron-main.js",
   "scripts": {
@@ -36,6 +36,7 @@
     "files": [
       "dist/**/*",
       "electron-main.js",
+      "dither.js",
       "preload.js",
       "printer-protocol.js",
       "package.json",
