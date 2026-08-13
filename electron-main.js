@@ -73,6 +73,11 @@ function collectImagePaths(values) {
   );
 }
 
+function addRecentDocuments(paths) {
+  if (process.platform !== "darwin") return;
+  for (const filePath of collectImagePaths(paths)) app.addRecentDocument(filePath);
+}
+
 function flushOpenImages() {
   if (
     pendingOpenImages.length &&
@@ -86,6 +91,7 @@ function flushOpenImages() {
   }
 }
 function queueOpenImages(paths) {
+  addRecentDocuments(paths);
   pendingOpenImages.push(
     ...paths.filter((filePath) => !pendingOpenImages.includes(filePath)),
   );
@@ -136,6 +142,12 @@ function createApplicationMenu() {
             label: "Add from Clipboard",
             accelerator: "CommandOrControl+Shift+V",
             click: () => sendMenuAction("add-from-clipboard"),
+          },
+          { type: "separator" },
+          {
+            label: "Open Recent",
+            role: "recentDocuments",
+            submenu: [{ role: "clearRecentDocuments" }],
           },
           { type: "separator" },
           { label: "Clear Queue", click: () => sendMenuAction("clear-queue") },
@@ -395,7 +407,9 @@ ipcMain.handle("choose-images", async () => {
       },
     ],
   });
-  return result.canceled ? [] : result.filePaths;
+  if (result.canceled) return [];
+  addRecentDocuments(result.filePaths);
+  return result.filePaths;
 });
 
 ipcMain.handle("paste-image", async () => {
@@ -511,7 +525,9 @@ ipcMain.handle("paste-files", () => {
       })
       .filter(Boolean),
   );
-  return { paths: collectImagePaths([...new Set(paths)]), formats };
+  const imagePaths = collectImagePaths([...new Set(paths)]);
+  addRecentDocuments(imagePaths);
+  return { paths: imagePaths, formats };
 });
 
 ipcMain.handle("render-image", async (_event, inputPath, options) => {
