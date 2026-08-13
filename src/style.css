@@ -21,7 +21,7 @@
   background: var(--sys-bg);
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
 [data-theme="dark"] {
@@ -36,6 +36,7 @@
   --sys-sidebar-hover: #333333;
   --sys-sidebar-active: #404040;
   --sys-status-bg: #2d2d2d;
+  color-scheme: dark;
 }
 
 * {
