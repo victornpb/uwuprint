@@ -149,6 +149,9 @@ function defaults() {
     rotation: 0,
     contrast: 1,
     brightness: 0,
+    invert: false,
+    trimBlank: false,
+    scaleToWidth: false,
     dither: "floyd-steinberg",
     crop: { left: 0, top: 0, width: 0, height: 0 },
   };
@@ -1116,6 +1119,11 @@ onBeforeUnmount(() => {
               min="-80"
               max="80"
               step="1" /></label
+          ><div class="image-option-group">
+            <label><span><input v-model="selected.options.invert" type="checkbox" /> Invert (negative)</span></label>
+            <label><span><input v-model="selected.options.trimBlank" type="checkbox" /> Trim blank space</span></label>
+            <label><span><input v-model="selected.options.scaleToWidth" type="checkbox" /> Scale up to width</span></label>
+          </div
           ><label
             >Dithering<select v-model="selected.options.dither">
               <option value="threshold">Threshold</option>
