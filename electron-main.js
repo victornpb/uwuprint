@@ -11,6 +11,7 @@ const {
 const path = require("path");
 const fs = require("fs");
 const sharp = require("sharp");
+const { dither } = require("./dither.js");
 const packageJson = require("./package.json");
 
 const APP_NAME = packageJson.prodName || packageJson.name;
@@ -351,30 +352,8 @@ async function renderImage(inputPath, options = {}) {
       (y + 1) * info.width,
     );
 
-  if (options.dither !== "threshold") {
-    for (let y = 0; y < info.height; y++) {
-      for (let x = 0; x < 384; x++) {
-        const index = y * 384 + x;
-        const oldPixel = padded[index];
-        const newPixel = oldPixel < 128 ? 0 : 255;
-        padded[index] = newPixel;
-        const error = oldPixel - newPixel;
-        const add = (target, amount) => {
-          if (target >= 0 && target < padded.length)
-            padded[target] = clamp(Math.round(padded[target] + amount), 0, 255);
-        };
-        if (x + 1 < 384) add(index + 1, (error * 7) / 16);
-        if (y + 1 < info.height) {
-          if (x > 0) add(index + 383, (error * 3) / 16);
-          add(index + 384, (error * 5) / 16);
-          if (x + 1 < 384) add(index + 385, error / 16);
-        }
-      }
-    }
-  } else {
-    for (let i = 0; i < padded.length; i++)
-      padded[i] = padded[i] < 128 ? 0 : 255;
-  }
+  const dithered = dither(padded, 384, info.height, options.dither);
+  dithered.copy(padded);
 
   const png = await sharp(padded, {
     raw: { width: 384, height: info.height, channels: 1 },

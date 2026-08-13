@@ -1118,8 +1118,24 @@ onBeforeUnmount(() => {
               step="1" /></label
           ><label
             >Dithering<select v-model="selected.options.dither">
-              <option value="floyd-steinberg">Floyd–Steinberg</option>
               <option value="threshold">Threshold</option>
+              <option value="random">Random</option>
+              <option value="pattern">Pattern</option>
+              <option value="ordered-halftone">Ordered (Halftone)</option>
+              <option value="ordered-bayer">Ordered (Bayer)</option>
+              <option value="ordered-void-cluster">Ordered (Void-and-cluster)</option>
+              <option value="riemersma">Riemersma</option>
+              <option value="floyd-steinberg">Floyd–Steinberg</option>
+              <option value="jarvis-judice-ninke">Jarvis, Judice &amp; Ninke</option>
+              <option value="stucki">Stucki</option>
+              <option value="burkes">Burkes</option>
+              <option value="sierra">Sierra</option>
+              <option value="two-row-sierra">Two-row Sierra</option>
+              <option value="sierra-lite">Sierra Filter Lite</option>
+              <option value="atkinson">Atkinson</option>
+              <option value="gradient-based">Gradient-based</option>
+              <option value="lattice-boltzmann">Lattice-Boltzmann</option>
+              <option value="electrostatic">Electrostatic halftoning</option>
             </select></label
           ><div class="main-margin-controls">
             <div class="controls-heading"><strong>Print margins</strong></div>
