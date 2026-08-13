@@ -32,19 +32,25 @@
     "directories": {
       "output": "release"
     },
+    "icon": "app-icon.png",
     "files": [
       "dist/**/*",
       "electron-main.js",
       "preload.js",
       "printer-protocol.js",
-      "package.json"
+      "package.json",
+      "app-icon.png"
     ],
     "mac": {
+      "icon": "app-icon.png",
       "category": "public.app-category.graphics-design",
       "target": [
         "dmg",
         "zip"
       ]
+    },
+    "win": {
+      "icon": "app-icon.png"
     },
     "asarUnpack": [
       "node_modules/sharp/**/*"

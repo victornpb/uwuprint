@@ -18,6 +18,7 @@ const APP_NAME = packageJson.prodName || packageJson.name;
 const APP_SLUG_NAME = packageJson.name;
 const APP_TAGLINE = packageJson.prodTagline || packageJson.description;
 const APP_VERSION = packageJson.version;
+const APP_ICON_PATH = path.join(__dirname, "app-icon.png");
 app.setName(APP_NAME);
 app.setAboutPanelOptions({
   applicationName: APP_NAME,
@@ -234,6 +235,7 @@ function createWindow() {
     height: 850,
     minWidth: 900,
     minHeight: 650,
+    icon: APP_ICON_PATH,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -611,6 +613,7 @@ app.on("open-file", (event, filePath) => {
 if (!app.requestSingleInstanceLock()) app.quit();
 else
   app.whenReady().then(() => {
+    if (process.platform === "darwin") app.dock.setIcon(APP_ICON_PATH);
     createApplicationMenu();
     createWindow();
   });
