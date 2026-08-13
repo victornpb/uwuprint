@@ -29,7 +29,7 @@ const showContinue = ref(false);
 const queueIndex = ref(0);
 const showPicker = ref(false);
 const showPreferences = ref(false);
-const activePreferenceTab = ref("printer");
+const activePreferenceTab = ref("general");
 const showOtherDevices = ref(false);
 let resumeAfterConnect = null;
 const connecting = ref(false);
@@ -677,7 +677,7 @@ function disconnectPrinter() {
   };
 }
 function openMarginSettings() {
-  activePreferenceTab.value = "printer";
+  activePreferenceTab.value = "layout";
   showPreferences.value = true;
 }
 function scheduleDisconnect() {
@@ -770,7 +770,7 @@ onMounted(() => {
       "print-all": () => printFromMenu(printAll),
       preferences: () => {
         showPreferences.value = true;
-        activePreferenceTab.value = "printer";
+        activePreferenceTab.value = "general";
       },
     };
     actions[action]?.();
@@ -848,7 +848,7 @@ onBeforeUnmount(() => {
           title="Preferences"
           @click="
             showPreferences = true;
-            activePreferenceTab = 'printer';
+            activePreferenceTab = 'general';
           "
         >
           ⚙
@@ -1191,51 +1191,60 @@ onBeforeUnmount(() => {
         <div class="preferences-body">
           <aside class="preferences-sidebar">
             <button
-              :class="{ active: activePreferenceTab === 'printer' }"
-              @click="activePreferenceTab = 'printer'"
+              :class="{ active: activePreferenceTab === 'general' }"
+              @click="activePreferenceTab = 'general'"
             >
-              🖨 Printer
+              ⚙️ General
+            </button>
+            <button
+              :class="{ active: activePreferenceTab === 'layout' }"
+              @click="activePreferenceTab = 'layout'"
+            >
+              📄 Print preferences
             </button>
             <button
               :class="{ active: activePreferenceTab === 'connection' }"
               @click="activePreferenceTab = 'connection'"
             >
-              ᛒ Connection
+              📶 Connection
             </button>
-            <button :class="{ active: activePreferenceTab === 'devices' }" @click="activePreferenceTab = 'devices'">📱 Devices</button>
+            <button :class="{ active: activePreferenceTab === 'devices' }" @click="activePreferenceTab = 'devices'">🖨 Devices</button>
             <button
               :class="{ active: activePreferenceTab === 'notifications' }"
               @click="activePreferenceTab = 'notifications'"
             >
               🔔 Notifications
             </button>
-            <button
-              :class="{ active: activePreferenceTab === 'layout' }"
-              @click="activePreferenceTab = 'layout'"
-            >
-              📏 Layout
-            </button>
-            <button
-              :class="{ active: activePreferenceTab === 'queue' }"
-              @click="activePreferenceTab = 'queue'"
-            >
-              📋 Queue
-            </button>
-            <button
-              :class="{ active: activePreferenceTab === 'advanced' }"
-              @click="activePreferenceTab = 'advanced'"
-            >
-              ⚙️ Advanced
-            </button>
-            <button
-              :class="{ active: activePreferenceTab === 'appearance' }"
-              @click="activePreferenceTab = 'appearance'"
-            >
-              🎨 Appearance
-            </button>
           </aside>
           <main class="preferences-content">
-            <template v-if="activePreferenceTab === 'printer'">
+            <template v-if="activePreferenceTab === 'general'">
+              <section class="settings-section">
+                <div class="section-heading">
+                  <h3>General</h3>
+                  <p>Choose the application theme.</p>
+                </div>
+                <label class="setting-field"
+                  ><span
+                    ><strong>Theme</strong
+                    ><small>Select light, dark, or follow system setting.</small></span
+                  ><select v-model="preferences.appearance.theme">
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select></label
+                >
+                <label class="setting-field"
+                  ><span
+                    ><strong>Margin units</strong
+                    ><small>Choose how margin values are displayed.</small></span
+                  ><select v-model="preferences.printer.marginUnits">
+                    <option value="px">Pixels</option>
+                    <option value="mm">Millimetres</option>
+                  </select></label
+                >
+              </section>
+            </template>
+            <template v-if="activePreferenceTab === 'layout'">
               <section class="settings-section">
                 <div class="section-heading">
                   <h3>Print quality</h3>
@@ -1243,9 +1252,9 @@ onBeforeUnmount(() => {
                 </div>
                 <label class="setting-field"
                   ><span
-                    ><strong>Print density</strong
+                    ><strong>Print Intensity</strong
                     ><small
-                      >Controls the printer’s dot concentration.</small
+                      >Controls the printer’s dot intensity.</small
                     ></span
                   ><select v-model.number="preferences.printer.quality">
                     <option :value="1">1 · Lightest</option>
@@ -1256,7 +1265,69 @@ onBeforeUnmount(() => {
                   </select></label
                 >
               </section>
-              
+              <section class="settings-section">
+                <div class="section-heading">
+                  <h3>Paper movement</h3>
+                </div>
+                <div class="setting-field margin-field-group">
+                  <span><strong>Print margins</strong><small>Feed paper before and after the image</small></span>
+                  <div class="margin-field-rows">
+                    <label class="margin-inner-row">
+                      <span class="checkbox-label"><input v-model="preferences.printer.marginTopEnabled" type="checkbox" /> Top</span>
+                      <div class="margin-input"><input :value="marginDisplay('marginTop')" @input="setMargin('marginTop', $event)" type="number" min="0" max="500" /><em>{{ preferences.printer.marginUnits }}</em></div>
+                    </label>
+                    <label class="margin-inner-row">
+                      <span class="checkbox-label"><input v-model="preferences.printer.marginBottomEnabled" type="checkbox" /> Bottom</span>
+                      <div class="margin-input"><input :value="marginDisplay('marginBottom')" @input="setMargin('marginBottom', $event)" type="number" min="0" max="500" /><em>{{ preferences.printer.marginUnits }}</em></div>
+                    </label>
+                  </div>
+                </div>
+                <label class="setting-field"><span><strong>Between pages</strong><small>Feed this amount between queued images.</small></span><div class="margin-input"><input :value="marginDisplay('marginBetween')" @input="setMargin('marginBetween', $event)" type="number" min="0" max="500" aria-label="Between pages margin" /><em>{{ preferences.printer.marginUnits }}</em></div></label>
+                <div class="setting-field">
+                  <span
+                    ><strong>Move amount</strong
+                    ><small
+                      >Pixels to feed forward or retract backward.</small
+                    ></span
+                  >
+                  <div class="inline-control">
+                    <input
+                      v-model.number="preferences.printer.manualFeed"
+                      type="number"
+                      min="1"
+                      max="500"
+                    /><button
+                      class="secondary"
+                      :disabled="!printerStatus.connected"
+                      @click="retractPaper"
+                    >
+                      Retract</button
+                    ><button
+                      class="secondary"
+                      :disabled="!printerStatus.connected"
+                      @click="feedPaper"
+                    >
+                      Feed
+                    </button>
+                  </div>
+                </div>
+              </section>
+              <section class="settings-section">
+                <div class="section-heading">
+                  <h3>Queue settings</h3>
+                </div>
+                <label class="toggle-row"
+                  ><span
+                    ><strong>Pause countdown on mouse movement</strong
+                    ><small
+                      >Pause auto-continue after the pointer moves more than
+                      10px.</small
+                    ></span
+                  ><input
+                    v-model="preferences.queue.cancelCountdownOnMouseMove"
+                    type="checkbox"
+                /></label>
+              </section>
             </template>
             <template v-if="activePreferenceTab === 'connection'">
               <section class="settings-section">
@@ -1296,7 +1367,7 @@ onBeforeUnmount(() => {
               </section>
               <section class="settings-section">
                 <div class="section-heading">
-                  <h3>Advanced</h3>
+                  <h3>Connection tuning</h3>
                 </div>
                 <label class="setting-field"
                   ><span
@@ -1334,13 +1405,13 @@ onBeforeUnmount(() => {
               <section class="settings-section">
                 <div class="section-heading">
                   <h3>Notifications</h3>
-                  <p>Choose which printer events should interrupt you.</p>
+                  <p>Choose which printer events you want to be notified</p>
                 </div>
                 <label class="toggle-row"
                   ><span
                     ><strong>Notifications</strong
                     ><small
-                      >Master switch for {{ appInfo.name }} alerts</small
+                      >Turn on or off all system notifications</small
                     ></span
                   ><input
                     v-model="preferences.notifications.enabled"
@@ -1369,94 +1440,6 @@ onBeforeUnmount(() => {
                       type="checkbox"
                   /></label>
                 </div>
-              </section>
-            </template>
-            <template v-if="activePreferenceTab === 'layout'">
-              <section class="settings-section">
-                <div class="section-heading">
-                  <h3>Paper movement</h3>
-                  <p>Move paper forward or backward by the selected amount.</p>
-                </div>
-                <div class="setting-field margin-field-group">
-                  <span><strong>Print margins</strong><small>Top, bottom, and between-page margins.</small></span>
-                  <div class="margin-field-rows">
-                    <label class="margin-inner-row">
-                      <span class="checkbox-label"><input v-model="preferences.printer.marginTopEnabled" type="checkbox" /> Top</span>
-                      <div class="margin-input"><input :value="marginDisplay('marginTop')" @input="setMargin('marginTop', $event)" type="number" min="0" max="500" /><em>{{ preferences.printer.marginUnits }}</em></div>
-                    </label>
-                    <label class="margin-inner-row">
-                      <span class="checkbox-label"><input v-model="preferences.printer.marginBottomEnabled" type="checkbox" /> Bottom</span>
-                      <div class="margin-input"><input :value="marginDisplay('marginBottom')" @input="setMargin('marginBottom', $event)" type="number" min="0" max="500" /><em>{{ preferences.printer.marginUnits }}</em></div>
-                    </label>
-                  </div>
-                </div>
-                <label class="setting-field"><span><strong>Between pages</strong><small>Feed this amount between queued images.</small></span><div class="margin-input"><input :value="marginDisplay('marginBetween')" @input="setMargin('marginBetween', $event)" type="number" min="0" max="500" aria-label="Between pages margin" /><em>{{ preferences.printer.marginUnits }}</em></div></label>
-                <label class="setting-field"><span><strong>Margin units</strong><small>Choose how margin values are displayed.</small></span><select v-model="preferences.printer.marginUnits"><option value="px">Pixels</option><option value="mm">Millimetres</option></select></label>
-                <div class="setting-field">
-                  <span
-                    ><strong>Move amount</strong
-                    ><small
-                      >Pixels to feed forward or retract backward.</small
-                    ></span
-                  >
-                  <div class="inline-control">
-                    <input
-                      v-model.number="preferences.printer.manualFeed"
-                      type="number"
-                      min="1"
-                      max="500"
-                    /><button
-                      class="secondary"
-                      :disabled="!printerStatus.connected"
-                      @click="retractPaper"
-                    >
-                      Retract</button
-                    ><button
-                      class="secondary"
-                      :disabled="!printerStatus.connected"
-                      @click="feedPaper"
-                    >
-                      Feed
-                    </button>
-                  </div>
-                </div>
-              </section>
-            </template>
-            <template v-if="activePreferenceTab === 'queue'">
-              <section class="settings-section">
-                <div class="section-heading">
-                  <h3>Queue settings</h3>
-                </div>
-                <label class="toggle-row"
-                  ><span
-                    ><strong>Pause countdown on mouse movement</strong
-                    ><small
-                      >Pause auto-continue after the pointer moves more than
-                      10px.</small
-                    ></span
-                  ><input
-                    v-model="preferences.queue.cancelCountdownOnMouseMove"
-                    type="checkbox"
-                /></label>
-              </section>
-            </template>
-            
-          <template v-if="activePreferenceTab === 'appearance'">
-              <section class="settings-section">
-                <div class="section-heading">
-                  <h3>Appearance</h3>
-                  <p>Choose the application theme.</p>
-                </div>
-                <label class="setting-field"
-                  ><span
-                    ><strong>Theme</strong
-                    ><small>Select light, dark, or follow system setting.</small></span
-                  ><select v-model="preferences.appearance.theme">
-                    <option value="system">System</option>
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                  </select></label
-                >
               </section>
             </template>
           </main>
