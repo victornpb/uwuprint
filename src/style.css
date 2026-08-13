@@ -21,6 +21,21 @@
   background: var(--sys-bg);
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
+  color-scheme: light dark;
+}
+
+[data-theme="dark"] {
+  --sys-bg: #1e1e1e;
+  --sys-content-bg: #2d2d2d;
+  --sys-border: #444444;
+  --sys-text-primary: #e0e0e0;
+  --sys-text-secondary: #a0a0a0;
+  --sys-control-bg: #3c3c3c;
+  --sys-control-border: #555555;
+  --sys-sidebar-bg: #252526;
+  --sys-sidebar-hover: #333333;
+  --sys-sidebar-active: #404040;
+  --sys-status-bg: #2d2d2d;
 }
 
 * {
@@ -94,7 +109,8 @@ header p {
   padding: 3px;
   border: 1px solid var(--sys-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.65);
+  background: var(--sys-content-bg); /* fallback */
+  background: color-mix(in srgb, var(--sys-content-bg) 65%, transparent);
   -webkit-app-region: no-drag;
 }
 
@@ -293,18 +309,19 @@ button.clear-link:hover {
 
 /* --- SIDEBAR (QUEUE) --- */
 .queue-header,
-.controls-heading {
+.controls > .controls-heading {
   padding: 16px;
   display: flex;
   gap: 8px;
   position: sticky;
   top: 0;
-  background: rgba(245, 245, 247, 0.9);
+  background: var(--sys-sidebar-bg); /* fallback */
+  background: color-mix(in srgb, var(--sys-sidebar-bg) 90%, transparent);
   backdrop-filter: blur(10px);
   z-index: 2;
 }
 
-.controls-heading {
+.controls > .controls-heading {
   justify-content: space-between;
   align-items: center;
 }
