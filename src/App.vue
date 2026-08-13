@@ -834,14 +834,14 @@ onBeforeUnmount(() => {
         </button>
       </nav>
       <div class="connection">
-        <button class="connection-badge" @click="openPicker">
+        <button class="connection-badge" title="Choose printer" @click="openPicker">
           <span :class="['dot', { connected: printerStatus.connected }]" />
           {{
             printerStatus.connected
               ? printerStatus.deviceName || "Connected"
               : "No printer"
           }}
-          <span class="connection-chevron">⌄</span>
+          <span class="connection-chevron" aria-hidden="true" />
         </button>
         <button
           class="icon-button"
@@ -851,7 +851,7 @@ onBeforeUnmount(() => {
             activePreferenceTab = 'general';
           "
         >
-          ⚙
+          ⚙️
         </button>
       </div>
     </header>
@@ -1047,12 +1047,12 @@ onBeforeUnmount(() => {
               <option value="threshold">Threshold</option>
             </select></label
           ><div class="main-margin-controls">
-            <div class="controls-heading"><strong>Print margins</strong><small>{{ preferences.printer.marginUnits }}</small></div>
+            <div class="controls-heading"><strong>Print margins</strong></div>
             <label><span><input v-model="preferences.printer.marginTopEnabled" type="checkbox" /> Top</span><div class="margin-input"><input :value="marginDisplay('marginTop')" @input="setMargin('marginTop', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></div></label>
             <label><span><input v-model="preferences.printer.marginBottomEnabled" type="checkbox" /> Bottom</span><div class="margin-input"><input :value="marginDisplay('marginBottom')" @input="setMargin('marginBottom', $event)" type="number" min="0" max="500" /><button class="unit-link" @click.prevent="openMarginSettings">{{ preferences.printer.marginUnits }}</button></div></label>
           </div>
           <div class="copies-control">
-            <div class="controls-heading"><strong>Copies</strong><small>Printed as queue items</small></div>
+            <div class="controls-heading"><strong>Copies</strong></div>
             <div class="copies-stepper">
               <button class="secondary" @click="selected.copies = Math.max(1, (selected.copies || 1) - 1)">−</button>
               <input v-model.number="selected.copies" @change="selected.copies = Math.max(1, Math.min(99, Number(selected.copies) || 1))" type="number" min="1" max="99" />

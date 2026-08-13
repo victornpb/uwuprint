@@ -230,10 +230,25 @@ button.clear-link:hover {
 }
 
 .connection-chevron {
+  position: relative;
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  margin-left: 2px;
+}
+
+.connection-chevron::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transform-origin: center;
   color: var(--sys-text-secondary);
-  font-size: 13px;
-  line-height: 1;
-  transform: translateY(-1px);
 }
 
 .connection .icon-button {
@@ -669,7 +684,6 @@ button.clear-link:hover {
 .copies-control {
   margin: 12px 0;
   padding-top: 12px;
-  border-top: 1px solid var(--sys-border);
 }
 .copies-control .controls-heading {
   margin-bottom: 8px;
