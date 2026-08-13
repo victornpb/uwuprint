@@ -195,14 +195,19 @@ const queuePreviewSize = computed(() => {
   const top = preferences.value.printer.marginTopEnabled
     ? Number(preferences.value.printer.marginTop) || 0
     : 0;
+  const bottom = preferences.value.printer.marginBottomEnabled
+    ? Number(preferences.value.printer.marginBottom) || 0
+    : 0;
   const between = queueOptions.value.feedBetween
     ? (Number(preferences.value.printer.marginBetween) || 0) * Math.max(0, items.length - 1)
-    : (preferences.value.printer.marginBottomEnabled
-        ? Number(preferences.value.printer.marginBottom) || 0
-        : 0) * items.length;
+    : 0;
   return {
     width: 384,
-    height: items.reduce((total, { image }) => total + (Number(image.height) || 0) + top, between),
+    height:
+      items.reduce(
+        (total, { image }) => total + (Number(image.height) || 0) + top + bottom,
+        0,
+      ) + between,
   };
 });
 function queuePreviewPageStyle() {
@@ -210,10 +215,9 @@ function queuePreviewPageStyle() {
     paddingTop: preferences.value.printer.marginTopEnabled
       ? `${preferences.value.printer.marginTop}px`
       : "0px",
-    paddingBottom:
-      !queueOptions.value.feedBetween && preferences.value.printer.marginBottomEnabled
-        ? `${preferences.value.printer.marginBottom}px`
-        : "0px",
+    paddingBottom: preferences.value.printer.marginBottomEnabled
+      ? `${preferences.value.printer.marginBottom}px`
+      : "0px",
   };
 }
 async function ensureOriginalPreview(image) {
@@ -308,7 +312,9 @@ function addImages(paths) {
         copies: 1,
       };
       images.value.push(image);
-      added.push(image);
+      // Use the reactive proxy from the array so background render updates
+      // invalidate the queue list immediately.
+      added.push(images.value[images.value.length - 1]);
     }
   if (!selectedId.value && images.value[0])
     selectedId.value = images.value[0].id;
@@ -511,6 +517,13 @@ async function printSelected() {
   printing.value = true;
   printProgress.value = 0;
   try {
+    const bottomFeed = preferences.value.printer.marginBottomEnabled
+      ? Number(preferences.value.printer.marginBottom) || 0
+      : 0;
+    const betweenFeed =
+      queueOptions.value.feedBetween && postFeedForPrint.value
+        ? Number(preferences.value.printer.marginBetween) || 0
+        : 0;
     await printer.print(
       decodePixels(selected.value.pixels),
       selected.value.width,
@@ -518,16 +531,10 @@ async function printSelected() {
       {
         ...preferences.value.printer,
         chunkDelay: preferences.value.advanced.chunkDelay,
-        postFeed: (queueOptions.value.feedBetween ? postFeedForPrint.value : preferences.value.printer.marginBottomEnabled)
-          ? queueOptions.value.feedBetween
-            ? preferences.value.printer.marginBetween
-            : preferences.value.printer.marginBottom
-          : 0,
+        postFeed: bottomFeed + betweenFeed,
         marginTopEnabled: preferences.value.printer.marginTopEnabled,
         marginTop: preferences.value.printer.marginTop,
-        postFeedEnabled: queueOptions.value.feedBetween
-          ? postFeedForPrint.value
-          : preferences.value.printer.marginBottomEnabled,
+        postFeedEnabled: bottomFeed + betweenFeed > 0,
       },
     );
     updatePrinterStatus({ ...printerStatus.value, message: "Print complete" });
@@ -629,6 +636,9 @@ function removeImage(id) {
   if (id === selectedId.value)
     selectedId.value =
       images.value[index]?.id || images.value[index - 1]?.id || null;
+}
+function removeCopy(image) {
+  image.copies = Math.max(1, (Number(image.copies) || 1) - 1);
 }
 async function refreshStatus() {
   try {
@@ -923,10 +933,10 @@ onBeforeUnmount(() => {
             </div>
             <button
               class="remove"
-              title="Remove image"
-              @click.stop="removeImage(item.image.id)"
+              :title="item.copyIndex > 0 ? 'Remove copy' : 'Remove image'"
+              @click.stop="item.copyIndex > 0 ? removeCopy(item.image) : removeImage(item.image.id)"
             >
-              ×
+              {{ item.copyIndex > 0 ? '−' : '×' }}
             </button>
           </article>
         </div>
