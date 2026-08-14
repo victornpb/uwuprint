@@ -10,6 +10,7 @@ const DEFAULT_PREFERENCES = {
 		energy: 39321,
 		quality: 5,
 		speed: 0,
+		orientation: 'top-to-bottom',
 		marginTop: 10,
 		marginTopEnabled: false,
 		marginBottom: 50,

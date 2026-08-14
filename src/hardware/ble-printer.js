@@ -156,10 +156,15 @@ export class BlePrinter {
 
   async print(pixels, width, height, settings = {}) {
     const rows = [];
-    for (let y = 0; y < height; y++) {
+    const reverseOrientation = settings.orientation === "bottom-to-top";
+    const firstRow = reverseOrientation ? height - 1 : 0;
+    const rowStep = reverseOrientation ? -1 : 1;
+    for (let y = firstRow; y >= 0 && y < height; y += rowStep) {
       const row = [];
-      for (let x = 0; x < width; x++)
+      for (let column = 0; column < width; column++) {
+        const x = reverseOrientation ? width - 1 - column : column;
         row.push(pixels[y * width + x] < 128 ? 1 : 0);
+      }
       rows.push(row);
     }
     const energy = Number.isFinite(Number(settings.energy))
