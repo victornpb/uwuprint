@@ -8,6 +8,7 @@
   --sys-accent-hover: color-mix(in srgb, var(--sys-accent), black 15%);
   --sys-accent-disabled: color-mix(in srgb, var(--sys-accent), transparent 60%);
   --sys-control-bg: #ffffff;
+  --sys-control-hover: #f0f0f0;
   --sys-control-border: #d1d1d6;
   --sys-sidebar-bg: #f5f5f7;
   --sys-sidebar-hover: #e8e8ed;
@@ -34,6 +35,7 @@
   --sys-text-primary: #e0e0e0;
   --sys-text-secondary: #a0a0a0;
   --sys-control-bg: #3c3c3c;
+  --sys-control-hover: #4a4a4a;
   --sys-control-border: #555555;
   --sys-sidebar-bg: #252526;
   --sys-sidebar-hover: #333333;
@@ -178,7 +180,7 @@ button.secondary {
 }
 
 button.secondary:hover:not(:disabled) {
-  background: #f0f0f0;
+  background: var(--sys-control-hover);
 }
 
 button.icon-button {
@@ -233,7 +235,7 @@ button.clear-link:hover {
 }
 
 .connection-badge:hover {
-  background: var(--sys-sidebar-selected);
+  background: var(--sys-sidebar-active);
 }
 
 .connection-chevron {
