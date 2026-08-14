@@ -1,8 +1,10 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import DitherComparisonDialog from './components/DitherComparisonDialog.vue';
+import { useTheme } from './composables/useTheme.js';
 
 const comparison = ref(null);
+useTheme();
 
 async function applyDither(dither) {
 	await window.desktop.applyDitherComparison(dither);
