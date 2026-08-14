@@ -38,7 +38,7 @@ export class BlePrinter {
 
   async connect() {
     this.manualDisconnect = false;
-    this.update({ connected: false, message: "Connecting…" });
+    this.update({ connected: false, message: "Searching for nearby printers…" });
     this.device = await navigator.bluetooth.requestDevice({
       acceptAllDevices: true,
       optionalServices: [SERVICE_UUID],

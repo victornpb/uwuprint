@@ -1,5 +1,7 @@
 <script setup>
-defineProps({
+import { normalizedPrinterName } from '../settings.js';
+
+const props = defineProps({
 	connected: { type: Boolean, required: true },
 	deviceName: { type: String, default: '' },
 	supportedDevices: { type: Array, required: true },
@@ -8,7 +10,15 @@ defineProps({
 	isRemembered: { type: Function, required: true },
 });
 
-defineEmits(['close', 'disconnect', 'select-device', 'toggle-other-devices', 'remember-device']);
+const emit = defineEmits(['close', 'disconnect', 'select-device', 'toggle-other-devices', 'remember-device']);
+
+function isConnectedDevice(device) {
+	return props.connected && normalizedPrinterName(device.name) === normalizedPrinterName(props.deviceName);
+}
+
+function selectDevice(device) {
+	if (!isConnectedDevice(device)) emit('select-device', device);
+}
 </script>
 
 <template>
@@ -27,14 +37,14 @@ defineEmits(['close', 'disconnect', 'select-device', 'toggle-other-devices', 're
 			<div class="device-section">
 				<h3>Supported printers <em>{{ supportedDevices.length }}</em></h3>
 				<button v-for="device in supportedDevices" :key="device.id" :disabled="device.connecting"
-					:class="['device-row', { connecting: device.connecting }]" @click="$emit('select-device', device)">
+					:class="['device-row', { connecting: device.connecting, connected: isConnectedDevice(device) }]" @click="selectDevice(device)">
 					<span><strong>{{ device.name }}</strong><small>MX/GB/GT compatible · {{ device.id.slice(-6)
 							}}</small></span>
 					<span class="remember-device" @click.stop><input :checked="isRemembered(device.name)"
 							type="checkbox" @change="$emit('remember-device', device.name, $event.target.checked)" />
 						Remember</span>
-					<span><i v-if="device.connecting" class="spinner" />{{ device.connecting ? 'Connecting…' : 'Connect'
-						}}</span>
+					<span v-if="isConnectedDevice(device)">Connected</span>
+					<span v-else><i v-if="device.connecting" class="spinner" />{{ device.connecting ? 'Connecting…' : 'Connect' }}</span>
 				</button>
 				<p v-if="!supportedDevices.length" class="muted">Searching for MX06 and compatible printers…</p>
 			</div>
@@ -45,12 +55,12 @@ defineEmits(['close', 'disconnect', 'select-device', 'toggle-other-devices', 're
 				</button>
 				<template v-if="showOtherDevices">
 					<button v-for="device in otherDevices" :key="device.id" :disabled="device.connecting"
-						:class="['device-row', { connecting: device.connecting }]"
-						@click="$emit('select-device', device)">
+						:class="['device-row', { connecting: device.connecting, connected: isConnectedDevice(device) }]"
+						@click="selectDevice(device)">
 						<span><strong>{{ device.name }}</strong><small>Bluetooth LE · {{ device.id.slice(-6)
 								}}</small></span>
-						<span><i v-if="device.connecting" class="spinner" />{{ device.connecting ? 'Connecting…' :
-							'Connect' }}</span>
+						<span v-if="isConnectedDevice(device)">Connected</span>
+						<span v-else><i v-if="device.connecting" class="spinner" />{{ device.connecting ? 'Connecting…' : 'Connect' }}</span>
 					</button>
 					<p v-if="!otherDevices.length" class="muted">No other devices found yet.</p>
 				</template>

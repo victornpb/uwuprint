@@ -216,6 +216,7 @@ function maybeNotify(event, title, body) {
 function updatePrinterStatus(next) {
   const previous = printerStatus.value;
   printerStatus.value = next;
+  if (next.connected) clearDeviceConnections();
   if (next.battery === "Low" && previous.battery !== "Low")
     maybeNotify(
       "lowBattery",
@@ -240,6 +241,10 @@ function updatePrinterStatus(next) {
       `${appInfo.value.name} is cooling down`,
       "The printhead is too hot. Wait before printing again.",
     );
+}
+
+function clearDeviceConnections() {
+  devices.value = devices.value.map((device) => ({ ...device, connecting: false }));
 }
 
 function addImages(paths = []) {
@@ -410,6 +415,7 @@ function decodePixels(base64) {
 }
 async function openPicker() {
   if (printerStatus.value.connected) {
+    clearDeviceConnections();
     showPicker.value = true;
     return;
   }
@@ -424,6 +430,7 @@ async function openPicker() {
     await resume?.();
   } catch (error) {
     resumeAfterConnect = null;
+    clearDeviceConnections();
     printerStatus.value = {
       ...printerStatus.value,
       connected: false,
@@ -440,7 +447,12 @@ async function selectDevice(device) {
   await window.desktop.selectBluetoothDevice(device.id);
 }
 async function closePicker() {
+  if (printerStatus.value.connected) {
+    showPicker.value = false;
+    return;
+  }
   await window.desktop.cancelBluetoothSelection();
+  clearDeviceConnections();
   resumeAfterConnect = null;
   showPicker.value = false;
   printerStatus.value = {
