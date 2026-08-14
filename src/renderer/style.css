@@ -799,6 +799,24 @@ button.clear-link:hover {
   padding: 0 16px 150px 16px;
 }
 
+.control-category {
+  padding: 12px 0 4px;
+  border-bottom: 1px solid var(--sys-border);
+}
+
+.control-category + .control-category {
+  margin-top: 8px;
+}
+
+.control-category h3 {
+  margin: 0 0 10px;
+  color: var(--sys-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .controls label {
   display: grid;
   grid-template-columns: 1fr auto;

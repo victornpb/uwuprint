@@ -842,39 +842,46 @@ onBeforeUnmount(() => {
           <button class="clear-link" @click="resetImageControls">Reset</button>
         </div>
         <div class="controls-body">
+          <section class="control-category">
+            <h3>Image transform</h3>
             <label>Rotation<select v-model.number="selected.options.rotation">
               <option :value="0">0°</option>
               <option :value="90">90°</option>
               <option :value="180">180°</option>
               <option :value="270">270°</option>
-            </select></label><label>Contrast <output>{{ selected.options.contrast.toFixed(2) }}</output><input
+            </select></label>
+            <label><span><input v-model="selected.options.trimBlank" type="checkbox" /> Trim blank space</span></label>
+            <label><span><input v-model="selected.options.scaleToWidth" type="checkbox" /> Scale up to
+                width</span></label>
+          </section>
+          <section class="control-category">
+            <h3>Image adjustments</h3>
+            <label>Contrast <output>{{ selected.options.contrast.toFixed(2) }}</output><input
               v-model.number="selected.options.contrast" @dblclick="resetControl('contrast', 1)" type="range" min="0.5"
               max="2" step="0.05" /></label><label>Brightness <output>{{ selected.options.brightness }}</output><input
               v-model.number="selected.options.brightness" @dblclick="resetControl('brightness', 0)" type="range"
               min="-80" max="80" step="1" /></label><label>Sharpen <output>{{ selected.options.sharpen }}</output><input
               v-model.number="selected.options.sharpen" @dblclick="resetControl('sharpen', 0)" type="range" min="0"
               max="10" step="1" /></label>
-          <div class="image-option-group">
-            <label><span><input v-model="selected.options.normalize" type="checkbox" /> Normalize levels</span></label>
-            <label><span><input v-model="selected.options.invert" type="checkbox" /> Invert (negative)</span></label>
-            <label><span><input v-model="selected.options.trimBlank" type="checkbox" /> Trim blank space</span></label>
-            <label><span><input v-model="selected.options.scaleToWidth" type="checkbox" /> Scale up to
-                width</span></label>
-          </div>
-          <label class="dither-field">Dithering
-            <div class="dither-control">
-              <select v-model="selected.options.dither">
-                <option v-for="option in ditheringOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-              </select>
-              <button class="secondary dither-step" type="button" aria-label="Previous dithering mode"
-                :disabled="ditheringIndex <= 0" @click="cycleDithering(-1)">←</button>
-              <button class="secondary dither-step" type="button" aria-label="Next dithering mode"
-                :disabled="ditheringIndex < 0 || ditheringIndex >= ditheringOptions.length - 1"
-                @click="cycleDithering(1)">→</button>
+            <div class="image-option-group">
+              <label><span><input v-model="selected.options.normalize" type="checkbox" /> Normalize levels</span></label>
+              <label><span><input v-model="selected.options.invert" type="checkbox" /> Invert (negative)</span></label>
             </div>
-          </label>
-          <button class="secondary dither-compare" type="button" :disabled="processing"
-            @click="openDitherComparison">Compare dithering</button>
+            <label class="dither-field">Dither
+              <div class="dither-control">
+                <select v-model="selected.options.dither">
+                  <option v-for="option in ditheringOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                </select>
+                <button class="secondary dither-step" type="button" aria-label="Previous dithering mode"
+                  :disabled="ditheringIndex <= 0" @click="cycleDithering(-1)">←</button>
+                <button class="secondary dither-step" type="button" aria-label="Next dithering mode"
+                  :disabled="ditheringIndex < 0 || ditheringIndex >= ditheringOptions.length - 1"
+                  @click="cycleDithering(1)">→</button>
+              </div>
+            </label>
+            <button class="secondary dither-compare" type="button" :disabled="processing"
+              @click="openDitherComparison">Compare dithering</button>
+          </section>
           <div class="main-margin-controls">
             <div class="controls-heading"><strong>Print margins</strong></div>
             <label @mouseenter="hoveredMarginTarget = 'top'" @mouseleave="hoveredMarginTarget = null"><span><input

@@ -16,6 +16,41 @@ function clamp(value, minimum, maximum) {
 	return Math.max(minimum, Math.min(maximum, value));
 }
 
+async function trimBlankBackground(image) {
+	const { data, info } = await image
+		.clone()
+		.ensureAlpha()
+		.raw()
+		.toBuffer({ resolveWithObject: true });
+	const backgroundThreshold = 32;
+	let left = info.width;
+	let top = info.height;
+	let right = -1;
+	let bottom = -1;
+	for (let y = 0; y < info.height; y++) {
+		for (let x = 0; x < info.width; x++) {
+			const offset = (y * info.width + x) * info.channels;
+			const alpha = data[offset + 3];
+			const isNearWhite =
+				data[offset] >= 255 - backgroundThreshold &&
+				data[offset + 1] >= 255 - backgroundThreshold &&
+				data[offset + 2] >= 255 - backgroundThreshold;
+			if (alpha <= backgroundThreshold || isNearWhite) continue;
+			left = Math.min(left, x);
+			top = Math.min(top, y);
+			right = Math.max(right, x);
+			bottom = Math.max(bottom, y);
+		}
+	}
+	if (right < left || bottom < top) return image;
+	return image.extract({
+		left,
+		top,
+		width: right - left + 1,
+		height: bottom - top + 1,
+	});
+}
+
 async function renderImage(inputPath, options = {}) {
 	if (!IMAGE_EXTENSIONS.has(path.extname(inputPath).toLowerCase())) {
 		throw new Error(
@@ -39,6 +74,7 @@ async function renderImage(inputPath, options = {}) {
 		});
 	}
 	image = image.rotate(Number(options.rotation) || 0);
+	if (options.trimBlank) image = await trimBlankBackground(image);
 
 	const contrast = Number(options.contrast ?? 1);
 	const brightness = Number(options.brightness ?? 0);
@@ -47,11 +83,6 @@ async function renderImage(inputPath, options = {}) {
 		.greyscale();
 	if (options.normalize) processed = processed.normalize();
 	processed = processed.linear(contrast, brightness);
-	if (options.trimBlank)
-		processed = processed.trim({
-			background: { r: 255, g: 255, b: 255 },
-			threshold: 8,
-		});
 	if (options.invert) processed = processed.negate();
 	processed = processed.resize({
 		width: 384,
