@@ -1114,14 +1114,55 @@ button.clear-link:hover {
 }
 
 .connecting-modal {
-  width: min(360px, calc(100vw - 36px));
+  position: relative;
+  width: min(340px, calc(100vw - 36px));
   text-align: center;
+  padding: 28px 24px 22px;
+}
+
+.connecting-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 14px;
+  place-items: center;
+  border: 1px solid var(--sys-border);
+  border-radius: 50%;
+  background: var(--sys-sidebar-bg);
 }
 
 .connecting-modal .spinner {
-  width: 20px;
-  height: 20px;
-  margin-bottom: 10px;
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  vertical-align: initial;
+}
+
+.connecting-copy h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.connecting-copy p {
+  margin: 6px 0 18px;
+  color: var(--sys-text-secondary);
+  font-size: 13px;
+}
+
+.connecting-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.connecting-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.connecting-actions button {
+  min-width: 156px;
 }
 @keyframes spin {
   to {

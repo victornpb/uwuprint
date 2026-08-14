@@ -463,6 +463,10 @@ async function closePicker() {
 }
 async function connectThen(action) {
   resumeAfterConnect = action;
+  if (!rememberedDevices.value.length) {
+    await openPicker();
+    return;
+  }
   connecting.value = true;
   try {
     await printer.connectRemembered(rememberedDevices.value, preferences.value.advanced.connectTimeout);
@@ -480,6 +484,12 @@ async function connectThen(action) {
   } finally {
     connecting.value = false;
   }
+}
+async function openNormalPicker() {
+  connecting.value = false;
+  showPicker.value = true;
+  await window.desktop.cancelBluetoothSelection();
+  await openPicker();
 }
 function printFromMenu(action) {
   if (printerStatus.value.connected) return action();
@@ -585,6 +595,7 @@ function motionStatus(message) {
   }, 900);
 }
 async function feedPaper() {
+  if (!printerStatus.value.connected) return connectThen(feedPaper);
   try {
     await printer.feedPaper(preferences.value.printer.manualFeed);
     motionStatus("Paper fed");
@@ -593,6 +604,7 @@ async function feedPaper() {
   }
 }
 async function retractPaper() {
+  if (!printerStatus.value.connected) return connectThen(retractPaper);
   try {
     await printer.retractPaper(preferences.value.printer.manualFeed);
     motionStatus("Paper retracted");
@@ -734,7 +746,7 @@ onBeforeUnmount(() => {
       :device-name="printerStatus.deviceName" :queue-count="queueItems.length"
       @select-tab="(tab) => { activeWorkspaceTab = tab; if (tab === 'original') ensureOriginalPreview(selected).then(() => nextTick(drawOriginalCanvas)); }"
       @open-picker="openPicker" @open-preferences="showPreferences = true; activePreferenceTab = 'general'" />
-    <PaperToolbar :preferences="preferences" :connected="printerStatus.connected" @feed="feedPaper" @retract="retractPaper" />
+    <PaperToolbar :preferences="preferences" @feed="feedPaper" @retract="retractPaper" />
     <section class="layout">
       <aside class="queue">
         <div class="queue-header">
@@ -957,9 +969,15 @@ onBeforeUnmount(() => {
     <StatusStrip :status="printerStatus" @refresh="refreshStatus" />
     <div v-if="connecting" class="modal-backdrop">
       <section class="modal connecting-modal">
-        <i class="spinner" />
-        <h2>Searching for a printer…</h2>
-        <p>Scanning nearby supported printers before opening the device list.</p>
+        <button class="icon-button connecting-close" aria-label="Cancel printer search" @click="closePicker">×</button>
+        <div class="connecting-icon"><i class="spinner" /></div>
+        <div class="connecting-copy">
+          <h2>Looking for your printer</h2>
+          <p>Make sure it is on, nearby, and not connected to another device.</p>
+        </div>
+        <div class="connecting-actions">
+          <button class="secondary" @click="openNormalPicker">Choose a printer…</button>
+        </div>
       </section>
     </div>
     <PrinterPicker

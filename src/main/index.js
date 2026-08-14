@@ -261,15 +261,6 @@ function createWindow() {
         bluetoothSelection = null;
         callback(remembered.deviceId); return;
       }
-      if (printerDiscoveryActive) {
-        clearTimeout(rememberedSelectionTimer);
-        rememberedSelectionTimer = setTimeout(() => {
-          rememberedSelectionNames = [];
-          printerDiscoveryActive = false;
-          if (!mainWindow?.isDestroyed())
-            mainWindow.webContents.send("printer-discovery-timeout");
-        }, rememberedSelectionTimeoutMs);
-      }
       mainWindow.webContents.send(
         "bluetooth-devices",
         [...uniqueDevices.values()].map((device) => ({
@@ -523,16 +514,20 @@ ipcMain.handle("cancel-bluetooth-selection", () => {
   bluetoothSelection = null;
 });
 function preparePrinterDiscovery(names, timeoutSeconds) {
-  // Print scans every model we support. Remembered devices still populate the
-  // settings list, but macOS rotates BLE identifiers so a model match is the
-  // only stable identifier available to discovery.
+  // macOS rotates BLE identifiers, so a remembered model name is the only
+  // stable identifier available for automatic reconnection.
   rememberedSelectionNames = [
-    ...SUPPORTED_PRINTER_NAMES,
     ...(Array.isArray(names) ? names : [names]).map(normalizedPrinterName),
   ];
   clearTimeout(rememberedSelectionTimer);
   rememberedSelectionTimeoutMs = Math.max(1, Number(timeoutSeconds) || 15) * 1000;
   printerDiscoveryActive = true;
+  rememberedSelectionTimer = setTimeout(() => {
+    rememberedSelectionNames = [];
+    printerDiscoveryActive = false;
+    if (!mainWindow?.isDestroyed())
+      mainWindow.webContents.send("printer-discovery-timeout");
+  }, rememberedSelectionTimeoutMs);
 }
 
 ipcMain.on("prepare-printer-discovery", (event, names, timeoutSeconds) => {
