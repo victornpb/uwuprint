@@ -16,7 +16,7 @@ import AppHeader from "./components/AppHeader.vue";
 import StatusStrip from "./components/StatusStrip.vue";
 import PaperToolbar from "./components/PaperToolbar.vue";
 import { usePreferences } from "./composables/usePreferences.js";
-import { DITHERING_OPTIONS } from "./dithering.js";
+import { DITHERING_GROUPS, DITHERING_OPTIONS } from "./dithering.js";
 import {
   createImageOptions,
   isImagePath,
@@ -113,6 +113,7 @@ const otherDevices = computed(() =>
   devices.value.filter((device) => !device.supported),
 );
 const ditheringOptions = DITHERING_OPTIONS;
+const ditheringGroups = DITHERING_GROUPS;
 const ditheringIndex = computed(() =>
   ditheringOptions.findIndex((option) => option.value === selected.value?.options.dither),
 );
@@ -939,7 +940,9 @@ onBeforeUnmount(() => {
             <label class="dither-field">Dither
               <div class="dither-control">
                 <select v-model="selected.options.dither">
-                  <option v-for="option in ditheringOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                  <optgroup v-for="group in ditheringGroups" :key="group.label" :label="group.label">
+                    <option v-for="option in group.options" :key="option.value" :value="option.value">{{ option.label }}</option>
+                  </optgroup>
                 </select>
                 <button class="secondary dither-step" type="button" aria-label="Previous dithering mode"
                   :disabled="ditheringIndex <= 0" @click="cycleDithering(-1)">←</button>
@@ -1094,9 +1097,10 @@ onBeforeUnmount(() => {
 
 .preferences-modal {
   width: 760px;
-  height: 560px;
+  height: calc(100vh - 48px);
+  min-height: 420px;
   max-width: 95vw;
-  max-height: 95vh;
+  max-height: 720px;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -1210,7 +1214,8 @@ onBeforeUnmount(() => {
 .setting-field input:not([type="checkbox"]),
 .setting-field select,
 .inline-control,
-.margin-field-rows {
+.margin-field-rows,
+.orientation-options {
   flex-shrink: 1;
   width: 200px;
   max-width: 100%;
@@ -1222,6 +1227,50 @@ onBeforeUnmount(() => {
   border: 1px solid var(--sys-control-border);
   border-radius: 6px;
   background: var(--sys-control-bg);
+}
+
+.orientation-options {
+	display: flex;
+	gap: 8px;
+}
+
+.orientation-option {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	justify-content: center;
+	min-width: 0;
+	padding: 8px;
+	border: 1px solid var(--sys-control-border);
+	border-radius: 6px;
+	background: var(--sys-control-bg);
+	color: var(--sys-text-primary);
+	font-size: 11px;
+	cursor: pointer;
+}
+
+.orientation-option:has(input:checked) {
+	border-color: var(--sys-accent);
+	background: color-mix(in srgb, var(--sys-accent) 10%, var(--sys-control-bg));
+}
+
+.orientation-option input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.orientation-option span {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+}
+
+.orientation-icon {
+	display: block;
+	width: 32px;
+	height: 32px;
 }
 
 .setting-field .margin-input input {
