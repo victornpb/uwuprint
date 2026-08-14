@@ -10,6 +10,7 @@ import {
 import { BlePrinter } from "../hardware/ble-printer.js";
 import PrinterPicker from "./components/PrinterPicker.vue";
 import PrintContinuationDialog from "./components/PrintContinuationDialog.vue";
+import PrintProgressDialog from "./components/PrintProgressDialog.vue";
 import PreferencesDialog from "./components/PreferencesDialog.vue";
 import AppHeader from "./components/AppHeader.vue";
 import StatusStrip from "./components/StatusStrip.vue";
@@ -970,14 +971,16 @@ onBeforeUnmount(() => {
           <button class="print" :disabled="processing || printing" @click="printSelected">
             Print image
           </button>
-          <div v-if="printing" class="progress">
-            <span>Printing {{ printProgress }}%</span>
-            <div><i :style="{ width: `${printProgress}%` }" /></div>
-          </div>
         </div>
       </aside>
     </section>
     <StatusStrip :status="printerStatus" @refresh="refreshStatus" />
+    <PrintProgressDialog
+      v-if="printing"
+      :image-name="selected?.name || 'Image'"
+      :preview="selected?.preview"
+      :progress="printProgress"
+    />
     <div v-if="connecting" class="modal-backdrop">
       <section class="modal connecting-modal">
         <button class="icon-button connecting-close" aria-label="Cancel printer search" @click="closePicker">×</button>
@@ -1276,58 +1279,6 @@ onBeforeUnmount(() => {
   align-self: center;
   color: var(--sys-text-secondary);
   font-size: 12px;
-}
-
-.progress {
-  margin-top: 12px;
-  font-size: 11px;
-  color: var(--sys-text-secondary);
-}
-
-.progress>div {
-  height: 4px;
-  margin-top: 6px;
-  overflow: hidden;
-  border-radius: 2px;
-  background: var(--sys-border);
-}
-
-.progress i {
-  display: block;
-  height: 100%;
-  border-radius: 2px;
-  background: var(--sys-accent);
-  transition: width 0.15s;
-}
-
-.print-dialog footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 20px;
-}
-
-.print-dialog {
-  width: min(400px, calc(100vw - 32px));
-}
-
-.next-preview {
-  display: block;
-  width: min(100%, 260px);
-  max-height: 230px;
-  margin: 16px auto 8px;
-  object-fit: contain;
-  image-rendering: pixelated;
-  border: 1px solid var(--sys-border);
-  border-radius: 6px;
-  background: #fff;
-}
-
-.job-motion {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 12px;
 }
 
 .queue-actions {
