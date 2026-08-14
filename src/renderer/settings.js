@@ -21,6 +21,7 @@ const DEFAULT_PREFERENCES = {
 	advanced: { chunkDelay: 20, disconnectAfter: 300, connectTimeout: 15 },
 	queue: { cancelCountdownOnMouseMove: true },
 	appearance: { theme: 'system' },
+	application: { quitOnWindowClose: false },
 	notifications: {
 		enabled: true,
 		lowBattery: true,
@@ -54,6 +55,7 @@ export function loadPreferences(storage = localStorage) {
 		advanced: { ...DEFAULT_PREFERENCES.advanced, ...(saved.advanced || {}) },
 		queue: { ...DEFAULT_PREFERENCES.queue, ...(saved.queue || {}) },
 		appearance: { ...DEFAULT_PREFERENCES.appearance, ...(saved.appearance || {}) },
+		application: { ...DEFAULT_PREFERENCES.application, ...(saved.application || {}) },
 		notifications: { ...DEFAULT_PREFERENCES.notifications, ...(saved.notifications || {}) },
 	};
 	if (saved.printer?.postFeed !== undefined)

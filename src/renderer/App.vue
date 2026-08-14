@@ -945,6 +945,7 @@ onBeforeUnmount(() => {
     <PreferencesDialog
       v-if="showPreferences"
       :preferences="preferences"
+      :app-info="appInfo"
       :active-tab="activePreferenceTab"
       :printer-status="printerStatus"
       :remembered-devices="rememberedDevices"

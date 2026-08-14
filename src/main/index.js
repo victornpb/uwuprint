@@ -44,6 +44,7 @@ let rememberedSelectionTimeoutMs = 15_000;
 let rememberedSelectionTimer;
 let printerDiscoveryActive = false;
 let printerMenuState = { connected: false, printing: false, hasImages: false };
+let quitOnWindowClose = false;
 function collectImagePaths(values) {
   return values.filter(
     (value) =>
@@ -549,7 +550,13 @@ ipcMain.handle("app-info", () => ({
   slug: APP_SLUG_NAME,
   tagline: APP_TAGLINE,
   version: APP_VERSION,
+  isMacOS: process.platform === "darwin",
 }));
+ipcMain.handle("set-quit-on-window-close", (event, enabled) => {
+  if (process.platform !== "darwin") return;
+  if (BrowserWindow.fromWebContents(event.sender) !== mainWindow) return;
+  quitOnWindowClose = enabled === true;
+});
 ipcMain.on("update-printer-menu", (_event, state) => {
   printerMenuState = { ...printerMenuState, ...state };
   updatePrinterMenu();
@@ -605,7 +612,7 @@ app.on("will-quit", () => {
   cleanupTempFiles(app.getPath("temp"), APP_SLUG_NAME);
 });
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+  if (process.platform !== "darwin" || quitOnWindowClose) app.quit();
 });
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();

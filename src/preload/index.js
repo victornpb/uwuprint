@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld("desktop", {
   cancelBluetoothSelection: () => ipcRenderer.invoke("cancel-bluetooth-selection"),
   showNotification: (notification) => ipcRenderer.invoke("show-notification", notification),
   getAppInfo: () => ipcRenderer.invoke("app-info"),
+  setQuitOnWindowClose: (enabled) => ipcRenderer.invoke("set-quit-on-window-close", enabled),
   updatePrinterMenu: (state) => ipcRenderer.send("update-printer-menu", state),
   getAccentColor: () => ipcRenderer.invoke("get-accent-color"),
   onAccentColorChanged: (callback) => ipcRenderer.on("accent-color-changed", (_event, color) => callback(color)),

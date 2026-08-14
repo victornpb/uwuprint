@@ -48,7 +48,10 @@ export function usePreferences() {
 		);
 	}
 
-	watch(preferences, (value) => savePreferences(value), { deep: true });
+	watch(preferences, (value) => {
+		savePreferences(value);
+		window.desktop.setQuitOnWindowClose(value.application.quitOnWindowClose);
+	}, { deep: true, immediate: true });
 	watch(() => preferences.value.appearance.theme, applyTheme, { immediate: true });
 	systemTheme.addEventListener('change', applyTheme);
 	onBeforeUnmount(() => systemTheme.removeEventListener('change', applyTheme));
