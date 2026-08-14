@@ -44,16 +44,23 @@ async function renderImage(inputPath, options = {}) {
 	const brightness = Number(options.brightness ?? 0);
 	let processed = image
 		.flatten({ background: { r: 255, g: 255, b: 255 } })
-		.greyscale()
-		.linear(contrast, brightness);
+		.greyscale();
+	if (options.normalize) processed = processed.normalize();
+	processed = processed.linear(contrast, brightness);
 	if (options.trimBlank)
 		processed = processed.trim({
 			background: { r: 255, g: 255, b: 255 },
 			threshold: 8,
 		});
 	if (options.invert) processed = processed.negate();
+	processed = processed.resize({
+		width: 384,
+		fit: 'inside',
+		withoutEnlargement: !options.scaleToWidth,
+	});
+	const sharpen = Number(options.sharpen ?? 0);
+	if (sharpen > 0) processed = processed.sharpen(sharpen);
 	const { data, info } = await processed
-		.resize({ width: 384, fit: 'inside', withoutEnlargement: !options.scaleToWidth })
 		.raw()
 		.toBuffer({ resolveWithObject: true });
 	const padded = Buffer.alloc(384 * info.height, 255);

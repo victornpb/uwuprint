@@ -71,6 +71,8 @@ export function createImageOptions() {
 		rotation: 0,
 		contrast: 1,
 		brightness: 0,
+		normalize: false,
+		sharpen: 0,
 		invert: false,
 		trimBlank: false,
 		scaleToWidth: false,

@@ -850,7 +850,7 @@ onBeforeUnmount(() => {
           <button class="clear-link" @click="resetImageControls">Reset</button>
         </div>
         <div class="controls-body">
-          <label>Rotation<select v-model.number="selected.options.rotation">
+            <label>Rotation<select v-model.number="selected.options.rotation">
               <option :value="0">0°</option>
               <option :value="90">90°</option>
               <option :value="180">180°</option>
@@ -859,8 +859,11 @@ onBeforeUnmount(() => {
               v-model.number="selected.options.contrast" @dblclick="resetControl('contrast', 1)" type="range" min="0.5"
               max="2" step="0.05" /></label><label>Brightness <output>{{ selected.options.brightness }}</output><input
               v-model.number="selected.options.brightness" @dblclick="resetControl('brightness', 0)" type="range"
-              min="-80" max="80" step="1" /></label>
+              min="-80" max="80" step="1" /></label><label>Sharpen <output>{{ selected.options.sharpen }}</output><input
+              v-model.number="selected.options.sharpen" @dblclick="resetControl('sharpen', 0)" type="range" min="0"
+              max="10" step="1" /></label>
           <div class="image-option-group">
+            <label><span><input v-model="selected.options.normalize" type="checkbox" /> Normalize levels</span></label>
             <label><span><input v-model="selected.options.invert" type="checkbox" /> Invert (negative)</span></label>
             <label><span><input v-model="selected.options.trimBlank" type="checkbox" /> Trim blank space</span></label>
             <label><span><input v-model="selected.options.scaleToWidth" type="checkbox" /> Scale up to
