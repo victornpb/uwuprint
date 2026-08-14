@@ -3,6 +3,7 @@ const props = defineProps({
 	imageName: { type: String, required: true },
 	preview: { type: String, default: '' },
 	progress: { type: Number, required: true },
+	orientation: { type: String, default: 'top-to-bottom' },
 });
 </script>
 
@@ -16,8 +17,8 @@ const props = defineProps({
 				</div>
 			</header>
 			<div class="print-progress-body">
-				<div v-if="preview" class="printing-preview">
-					<div class="printing-preview-image">
+					<div v-if="preview" class="printing-preview">
+						<div :class="['printing-preview-image', { 'print-orientation-reversed': orientation === 'bottom-to-top' }]">
 						<img :src="preview" :alt="`Printing preview for ${imageName}`" />
 						<span class="printing-preview-printed" :style="{ height: `${progress}%` }"><img :src="preview" alt="" /></span>
 						<i class="printing-preview-line" :style="{ top: `${progress}%` }" />
@@ -100,6 +101,10 @@ const props = defineProps({
 	opacity: 0.32;
 }
 
+.printing-preview-image.print-orientation-reversed {
+	transform: rotate(180deg);
+}
+
 .printing-preview-printed {
 	position: absolute;
 	top: 0;
@@ -108,6 +113,11 @@ const props = defineProps({
 	overflow: hidden;
 	pointer-events: none;
 	transition: height 0.15s linear;
+}
+
+.print-orientation-reversed .printing-preview-printed {
+	top: auto;
+	bottom: 0;
 }
 
 .printing-preview-printed img {
@@ -126,6 +136,11 @@ const props = defineProps({
 	box-shadow: 0 0 0 1px color-mix(in srgb, var(--sys-accent) 20%, transparent);
 	pointer-events: none;
 	transition: top 0.15s linear;
+}
+
+.print-orientation-reversed .printing-preview-line {
+	top: auto;
+	bottom: 0;
 }
 
 .printing-preview-empty {

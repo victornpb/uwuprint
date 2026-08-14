@@ -20,7 +20,7 @@ const DEFAULT_PREFERENCES = {
 		manualFeed: 20,
 	},
 	advanced: { chunkDelay: 20, disconnectAfter: 300, connectTimeout: 15 },
-	queue: { cancelCountdownOnMouseMove: true },
+	queue: { cancelCountdownOnMouseMove: true, order: 'first-to-last' },
 	appearance: { theme: 'system' },
 	application: { quitOnWindowClose: false },
 	notifications: {

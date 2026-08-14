@@ -97,6 +97,11 @@ const queueItems = computed(() =>
     ),
   ),
 );
+const printQueueItems = computed(() =>
+  preferences.value.queue.order === 'last-to-first'
+    ? [...queueItems.value].reverse()
+    : queueItems.value,
+);
 const supportedDevices = computed(() =>
   devices.value.filter((device) => device.supported),
 );
@@ -556,16 +561,16 @@ async function printAll() {
   await printQueueItem();
 }
 async function printQueueItem() {
-  const item = queueItems.value[queueIndex.value];
+  const item = printQueueItems.value[queueIndex.value];
   if (!item) return;
   selectedId.value = item.image.id;
   await nextTick();
   postFeedForPrint.value =
     queueOptions.value.feedBetween &&
-    queueIndex.value < queueItems.value.length - 1;
+    queueIndex.value < printQueueItems.value.length - 1;
   const didPrint = await printSelected();
   if (!didPrint) return;
-  if (queueIndex.value < queueItems.value.length - 1) {
+  if (queueIndex.value < printQueueItems.value.length - 1) {
     if (queueOptions.value.pause) showContinue.value = true;
     else {
       queueIndex.value++;
@@ -862,7 +867,7 @@ onBeforeUnmount(() => {
           </div>
           <div class="queue-preview-scroll">
             <div class="queue-preview-strip">
-              <template v-for="(item, index) in queueItems" :key="`${item.image.id}-${item.copyIndex}`">
+              <template v-for="(item, index) in printQueueItems" :key="`${item.image.id}-${item.copyIndex}`">
                 <div class="queue-preview-page" :style="queuePreviewPageStyle()">
                   <span v-if="isHoveredMargin('top', preferences.printer.marginTopEnabled)"
                     class="margin-overlay margin-overlay-top" :style="{ height: marginHighlightHeight('marginTop') }" />
@@ -874,7 +879,7 @@ onBeforeUnmount(() => {
                     :alt="`Processed preview for ${item.image.name}`" />
                   <span v-else class="queue-preview-loading">Processing…</span>
                 </div>
-                <div v-if="index < queueItems.length - 1" class="queue-preview-break" :class="{
+                <div v-if="index < printQueueItems.length - 1" class="queue-preview-break" :class="{
                   'has-margin': queuePreviewGap > 0,
                   'pause-hovered': hoveredPauseTarget === 'pause',
                 }" :style="{ height: `${queuePreviewGap}px` }">
@@ -980,6 +985,7 @@ onBeforeUnmount(() => {
       :image-name="selected?.name || 'Image'"
       :preview="selected?.preview"
       :progress="printProgress"
+      :orientation="preferences.printer.orientation"
     />
     <div v-if="connecting" class="modal-backdrop">
       <section class="modal connecting-modal">
@@ -1039,8 +1045,8 @@ onBeforeUnmount(() => {
     <PrintContinuationDialog
       v-if="showContinue"
       :queue-index="queueIndex"
-      :queue-length="queueItems.length"
-      :next-preview="queueItems[queueIndex + 1]?.image.preview"
+      :queue-length="printQueueItems.length"
+      :next-preview="printQueueItems[queueIndex + 1]?.image.preview"
       :auto-continue-seconds="autoContinueSeconds"
       :pause-on-mouse-move="preferences.queue.cancelCountdownOnMouseMove"
       @cancel="cancelQueue"
