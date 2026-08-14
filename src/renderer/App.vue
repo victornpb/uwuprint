@@ -472,6 +472,8 @@ async function connectThen(action) {
     await printer.connectRemembered(rememberedDevices.value, preferences.value.advanced.connectTimeout);
     const resume = resumeAfterConnect;
     resumeAfterConnect = null;
+    if (printerStatus.value.connected)
+      await new Promise((resolve) => setTimeout(resolve, 450));
     connecting.value = false;
     await resume?.();
   } catch (error) {
@@ -484,6 +486,9 @@ async function connectThen(action) {
   } finally {
     connecting.value = false;
   }
+}
+function isConnectingPrinter() {
+  return printerStatus.value.message === "Connecting to printer…";
 }
 async function openNormalPicker() {
   connecting.value = false;
@@ -970,12 +975,17 @@ onBeforeUnmount(() => {
     <div v-if="connecting" class="modal-backdrop">
       <section class="modal connecting-modal">
         <button class="icon-button connecting-close" aria-label="Cancel printer search" @click="closePicker">×</button>
-        <div class="connecting-icon"><i class="spinner" /></div>
+        <div v-if="printerStatus.connected" class="connecting-icon connected-icon">✓</div>
+        <div v-else class="connecting-icon"><i class="spinner" /></div>
         <div class="connecting-copy">
-          <h2>Looking for your printer</h2>
-          <p>Make sure it is on, nearby, and not connected to another device.</p>
+          <h2 v-if="printerStatus.connected">Printer connected</h2>
+          <h2 v-else-if="isConnectingPrinter()">Connecting to printer</h2>
+          <h2 v-else>Looking for your printer</h2>
+          <p v-if="printerStatus.connected">Getting your action ready…</p>
+          <p v-else-if="isConnectingPrinter()">Establishing a Bluetooth connection.</p>
+          <p v-else>Make sure it is on, nearby, and not connected to another device.</p>
         </div>
-        <div class="connecting-actions">
+        <div v-if="!printerStatus.connected && !isConnectingPrinter()" class="connecting-actions">
           <button class="secondary" @click="openNormalPicker">Choose a printer…</button>
         </div>
       </section>

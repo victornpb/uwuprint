@@ -1139,6 +1139,12 @@ button.clear-link:hover {
   vertical-align: initial;
 }
 
+.connected-icon {
+  color: var(--sys-status-ok);
+  font-size: 22px;
+  font-weight: 600;
+}
+
 .connecting-copy h2 {
   font-size: 16px;
   font-weight: 600;
