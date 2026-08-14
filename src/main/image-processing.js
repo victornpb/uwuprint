@@ -10,6 +10,7 @@ const IMAGE_EXTENSIONS = new Set([
 	'.gif',
 	'.tiff',
 	'.bmp',
+	'.svg',
 ]);
 
 function clamp(value, minimum, maximum) {

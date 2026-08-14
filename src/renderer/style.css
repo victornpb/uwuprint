@@ -287,23 +287,32 @@ button.clear-link:hover {
 .paper-toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 20px;
-  background: var(--sys-content-bg);
-  border-bottom: 1px solid var(--sys-border);
-  font-size: 12px;
+  gap: 5px;
+  padding: 0;
+  background: transparent;
+  font-size: 11px;
+  -webkit-app-region: no-drag;
 }
 
 .paper-toolbar strong {
-  font-weight: 500;
+  margin-right: 2px;
+  color: var(--sys-text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
 .paper-toolbar input {
-  width: 60px;
-  padding: 4px 8px;
+  width: 52px;
+  padding: 3px 5px;
   border: 1px solid var(--sys-control-border);
   border-radius: 4px;
   text-align: right;
+}
+
+.paper-toolbar button {
+  padding: 3px 7px;
+  font-size: 11px;
 }
 
 /* --- MAIN LAYOUT --- */
@@ -785,7 +794,14 @@ button.clear-link:hover {
   border: 0;
   background: transparent;
   box-shadow: none;
-  cursor: pointer;
+  cursor: default;
+  text-decoration: none;
+}
+.unit-link:hover:not(:disabled),
+.unit-link:focus-visible {
+  color: var(--sys-text-secondary);
+  background: transparent;
+  box-shadow: none;
   text-decoration: underline;
 }
 

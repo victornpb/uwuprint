@@ -228,6 +228,7 @@ function createWindow() {
     height: 850,
     minWidth: 900,
     minHeight: 650,
+    title: `${APP_NAME} v${APP_VERSION}`,
     icon: APP_ICON_PATH,
     webPreferences: {
       preload: path.join(__dirname, "..", "preload", "index.js"),
@@ -312,6 +313,10 @@ ipcMain.handle("choose-images", async () => {
   if (result.canceled) return [];
   addRecentDocuments(result.filePaths);
   return result.filePaths;
+});
+
+ipcMain.handle("add-recent-documents", (_event, paths) => {
+  addRecentDocuments(paths);
 });
 
 ipcMain.handle("open-dither-comparison", (event, image, options) => {
@@ -475,6 +480,7 @@ ipcMain.handle("paste-files", () => {
   paths.push(
     ...raw
       .split(/[\r\n]+/)
+      .map((value) => value.trim())
       .filter((value) => value.startsWith("file://"))
       .map((value) => {
         try {

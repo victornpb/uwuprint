@@ -1,4 +1,14 @@
 <script setup>
+import { ref } from 'vue';
+
+const marginUnitsSelect = ref(null);
+
+function focusMarginUnits() {
+	marginUnitsSelect.value?.focus();
+}
+
+defineExpose({ focusMarginUnits });
+
 defineProps({
 	preferences: { type: Object, required: true },
 	appInfo: { type: Object, required: true },
@@ -27,7 +37,7 @@ defineEmits(['close', 'update:activeTab', 'set-margin', 'feed', 'retract', 'forg
 					<template v-if="activeTab === 'general'">
 						<section class="settings-section"><div class="section-heading"><h3>General</h3><p>Choose the application theme.</p></div>
 							<label class="setting-field"><span><strong>Theme</strong><small>Select light, dark, or follow system setting.</small></span><select v-model="preferences.appearance.theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
-							<label class="setting-field"><span><strong>Margin units</strong><small>Choose how margin values are displayed.</small></span><select v-model="preferences.printer.marginUnits"><option value="px">Pixels</option><option value="mm">Millimetres</option></select></label>
+							<label class="setting-field"><span><strong>Margin units</strong><small>Choose how margin values are displayed.</small></span><select ref="marginUnitsSelect" v-model="preferences.printer.marginUnits"><option value="px">Pixels</option><option value="mm">Millimetres</option></select></label>
 							<label v-if="appInfo.isMacOS" class="toggle-row"><span><strong>Quit when the window is closed</strong><small>Quit the app instead of keeping it open in the Dock when you close the window.</small></span><input v-model="preferences.application.quitOnWindowClose" type="checkbox" /></label>
 						</section>
 					</template>

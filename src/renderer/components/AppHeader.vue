@@ -1,12 +1,17 @@
 <script setup>
+import PaperToolbar from './PaperToolbar.vue';
+
 defineProps({
   appInfo: { type: Object, required: true },
   activeTab: { type: String, required: true },
   connected: { type: Boolean, required: true },
   deviceName: { type: String, default: '' },
   queueCount: { type: Number, required: true },
+  preferences: { type: Object, required: true },
+	marginDisplay: { type: Function, required: true },
+	setMargin: { type: Function, required: true },
 });
-const emit = defineEmits(['select-tab', 'open-picker', 'open-preferences']);
+const emit = defineEmits(['select-tab', 'open-picker', 'open-preferences', 'open-margin-settings', 'feed', 'retract']);
 </script>
 <template>
   <header>
@@ -17,6 +22,7 @@ const emit = defineEmits(['select-tab', 'open-picker', 'open-preferences']);
       <button v-if="queueCount > 1" :class="{ active: activeTab === 'preview-all' }" @click="emit('select-tab', 'preview-all')">Preview all</button>
     </nav>
     <div class="connection">
+      <PaperToolbar :preferences="preferences" :margin-display="marginDisplay" :set-margin="setMargin" @feed="emit('feed')" @retract="emit('retract')" @open-settings="emit('open-margin-settings')" />
       <button class="connection-badge" title="Choose printer" @click="emit('open-picker')"><span :class="['dot', { connected }]" />{{ connected ? deviceName || 'Connected' : 'No printer' }}<span class="connection-chevron" aria-hidden="true" /></button>
       <button class="icon-button" title="Preferences" @click="emit('open-preferences')">⚙️</button>
     </div>

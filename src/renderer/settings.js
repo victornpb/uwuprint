@@ -92,4 +92,4 @@ export function createImageOptions() {
 }
 
 export const isImagePath = (filePath) =>
-	/\.(png|jpe?g|webp|gif|tiff?|bmp)$/i.test(filePath);
+	/\.(png|jpe?g|webp|gif|tiff?|bmp|svg)$/i.test(filePath);

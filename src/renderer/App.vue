@@ -14,7 +14,6 @@ import PrintProgressDialog from "./components/PrintProgressDialog.vue";
 import PreferencesDialog from "./components/PreferencesDialog.vue";
 import AppHeader from "./components/AppHeader.vue";
 import StatusStrip from "./components/StatusStrip.vue";
-import PaperToolbar from "./components/PaperToolbar.vue";
 import { usePreferences } from "./composables/usePreferences.js";
 import { DITHERING_GROUPS, DITHERING_OPTIONS } from "./dithering.js";
 import {
@@ -39,6 +38,7 @@ const queueIndex = ref(0);
 const showContinue = ref(false);
 const showPicker = ref(false);
 const showPreferences = ref(false);
+const preferencesDialog = ref(null);
 const activePreferenceTab = ref("general");
 const showOtherDevices = ref(false);
 const hoveredMarginTarget = ref(null);
@@ -259,6 +259,7 @@ function clearDeviceConnections() {
 }
 
 function addImages(paths = []) {
+  window.desktop.addRecentDocuments?.(paths);
   const added = [];
   for (const path of paths)
     if (!images.value.some((image) => image.path === path)) {
@@ -658,9 +659,11 @@ function disconnectPrinter() {
     message: "Disconnected",
   };
 }
-function openMarginSettings() {
-  activePreferenceTab.value = "layout";
+async function openMarginSettings() {
+  activePreferenceTab.value = "general";
   showPreferences.value = true;
+  await nextTick();
+  preferencesDialog.value?.focusMarginUnits();
 }
 function scheduleDisconnect() {
   clearTimeout(disconnectTimer);
@@ -768,9 +771,12 @@ onBeforeUnmount(() => {
     @drop.prevent="handleDrop">
     <AppHeader :app-info="appInfo" :active-tab="activeWorkspaceTab" :connected="printerStatus.connected"
       :device-name="printerStatus.deviceName" :queue-count="queueItems.length"
+      :preferences="preferences"
+			:margin-display="marginDisplay" :set-margin="setMargin"
       @select-tab="(tab) => { activeWorkspaceTab = tab; if (tab === 'original') ensureOriginalPreview(selected).then(() => nextTick(drawOriginalCanvas)); }"
-      @open-picker="openPicker" @open-preferences="showPreferences = true; activePreferenceTab = 'general'" />
-    <PaperToolbar :preferences="preferences" @feed="feedPaper" @retract="retractPaper" />
+      @open-picker="openPicker" @open-preferences="showPreferences = true; activePreferenceTab = 'general'"
+      @open-margin-settings="openMarginSettings"
+      @feed="feedPaper" @retract="retractPaper" />
     <section class="layout">
       <aside class="queue">
         <div class="queue-header">
@@ -1040,6 +1046,7 @@ onBeforeUnmount(() => {
       @open-bluetooth-settings="openBluetoothSettings"
     />
     <PreferencesDialog
+      ref="preferencesDialog"
       v-if="showPreferences"
       :preferences="preferences"
       :app-info="appInfo"
