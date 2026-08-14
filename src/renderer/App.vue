@@ -72,6 +72,18 @@ let disconnectTimer;
 const selected = computed(() =>
   images.value.find((image) => image.id === selectedId.value),
 );
+const canScaleToWidth = computed(() => {
+  const image = selected.value;
+  return Boolean(
+    image &&
+    ((image.contentWidth > 0 && image.contentWidth < 384) ||
+      (image.unscaledWidth > 0 && image.unscaledWidth < 384)),
+  );
+});
+const canAlignImage = computed(() => {
+  const image = selected.value;
+  return Boolean(image && image.contentWidth > 0 && image.contentWidth < 384);
+});
 const queueItems = computed(() =>
   images.value.flatMap((image, imageIndex) =>
     Array.from(
@@ -245,6 +257,8 @@ function addImages(paths = []) {
         originalError: null,
         pixels: null,
         width: 0,
+        contentWidth: 0,
+        unscaledWidth: 0,
         height: 0,
         processing: true,
         error: null,
@@ -367,6 +381,8 @@ async function renderImage(image) {
     .then((result) => {
       // Ignore an older render that finishes after newer image controls changed.
       if (renderTasks.get(image.id)?.key === key) {
+        if (image.options.scaleToWidth && result.unscaledWidth >= 384)
+          image.options.scaleToWidth = false;
         Object.assign(image, result);
         image.error = null;
       }
@@ -850,9 +866,15 @@ onBeforeUnmount(() => {
               <option :value="180">180°</option>
               <option :value="270">270°</option>
             </select></label>
+            <label title="Alignment is available only when the processed image is narrower than the 384 px print width.">Alignment<select
+              v-model="selected.options.alignment" :disabled="!canAlignImage">
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </select></label>
             <label><span><input v-model="selected.options.trimBlank" type="checkbox" /> Trim blank space</span></label>
-            <label><span><input v-model="selected.options.scaleToWidth" type="checkbox" /> Scale up to
-                width</span></label>
+            <label title="Scale up is available only when the processed image is narrower than the 384 px print width."><span><input
+                  v-model="selected.options.scaleToWidth" :disabled="!canScaleToWidth" type="checkbox" /> Scale up to width</span></label>
           </section>
           <section class="control-category">
             <h3>Image adjustments</h3>

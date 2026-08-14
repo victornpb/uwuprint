@@ -78,6 +78,7 @@ export function createImageOptions() {
 		invert: false,
 		trimBlank: false,
 		scaleToWidth: false,
+		alignment: 'center',
 		dither: 'floyd-steinberg',
 		crop: { left: 0, top: 0, width: 0, height: 0 },
 	};

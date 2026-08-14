@@ -505,6 +505,8 @@ ipcMain.handle("render-image", async (_event, inputPath, options) => {
     original: result.original,
     pixels: result.pixels.toString("base64"),
     width: result.width,
+    contentWidth: result.contentWidth,
+    unscaledWidth: result.unscaledWidth,
     height: result.height,
   };
 });

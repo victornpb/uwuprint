@@ -84,6 +84,11 @@ async function renderImage(inputPath, options = {}) {
 	if (options.normalize) processed = processed.normalize();
 	processed = processed.linear(contrast, brightness);
 	if (options.invert) processed = processed.negate();
+	const { info: unscaledInfo } = await processed
+		.clone()
+		.raw()
+		.toBuffer({ resolveWithObject: true });
+	const unscaledWidth = unscaledInfo.width;
 	processed = processed.resize({
 		width: 384,
 		fit: 'inside',
@@ -95,7 +100,11 @@ async function renderImage(inputPath, options = {}) {
 		.raw()
 		.toBuffer({ resolveWithObject: true });
 	const padded = Buffer.alloc(384 * info.height, 255);
-	const leftPadding = Math.floor((384 - info.width) / 2);
+	const leftPadding = options.alignment === 'left'
+		? 0
+		: options.alignment === 'right'
+			? 384 - info.width
+			: Math.floor((384 - info.width) / 2);
 	for (let y = 0; y < info.height; y++)
 		data.copy(padded, y * 384 + leftPadding, y * info.width, (y + 1) * info.width);
 
@@ -108,6 +117,8 @@ async function renderImage(inputPath, options = {}) {
 	return {
 		pixels: padded,
 		width: 384,
+		contentWidth: info.width,
+		unscaledWidth,
 		height: info.height,
 		preview: `data:image/png;base64,${png.toString('base64')}`,
 		original: `data:image/png;base64,${originalPreview.toString('base64')}`,
