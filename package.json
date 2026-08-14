@@ -3,13 +3,14 @@
   "prodName": "uwuPrint",
   "prodTagline": "Thermal printer driver",
   "productName": "UwuPrint",
-  "version": "0.1.1",
-  "description": "",
-  "main": "electron-main.js",
+  "version": "0.1.2",
+  "description": "Desktop thermal printer driver",
+  "main": "src/main/index.js",
   "scripts": {
     "dev": "node scripts/dev.js",
-    "start": "electron .",
+    "start": "npm run build && electron .",
     "build": "vite build",
+    "test": "node --check src/main/index.js && node --check src/main/image-processing.js && node --check src/main/temp-files.js && node --check src/preload/index.js && node --check src/main/dither.js && node --check src/hardware/printer-models.cjs && node --check src/hardware/ble-printer.js && node --check src/hardware/printer-protocol.mjs && node --check src/renderer/settings.js && node --check src/renderer/composables/usePreferences.js && node --check scripts/dev.js && npm run build",
     "package": "npm run build && electron-builder --dir",
     "make:mac": "npm run build && electron-builder --mac"
   },
@@ -32,18 +33,17 @@
     "directories": {
       "output": "release"
     },
-    "icon": "app-icon.png",
+    "icon": "src/assets/app-icon.png",
     "files": [
       "dist/**/*",
-      "electron-main.js",
-      "dither.js",
-      "preload.js",
-      "printer-protocol.js",
-      "package.json",
-      "app-icon.png"
+      "src/main/**/*",
+      "src/preload/**/*",
+      "src/hardware/**/*",
+      "src/assets/**/*",
+      "package.json"
     ],
     "mac": {
-      "icon": "app-icon.png",
+      "icon": "src/assets/app-icon.png",
       "category": "public.app-category.graphics-design",
       "target": [
         "dmg",
@@ -51,7 +51,7 @@
       ]
     },
     "win": {
-      "icon": "app-icon.png"
+      "icon": "src/assets/app-icon.png"
     },
     "asarUnpack": [
       "node_modules/sharp/**/*"

@@ -4,7 +4,7 @@ import {
   buildRetractData,
   buildStatusRequest,
   flowControl,
-} from "../printer-protocol.js";
+} from "./printer-protocol.mjs";
 
 const SERVICE_UUID = "0000ae30-0000-1000-8000-00805f9b34fb";
 const WRITE_UUID = "0000ae01-0000-1000-8000-00805f9b34fb";
@@ -16,7 +16,7 @@ const delay = (milliseconds) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export class BlePrinter {
-  constructor(onStatus, onProgress = () => {}) {
+  constructor(onStatus, onProgress = () => { }) {
     this.onStatus = onStatus;
     this.onProgress = onProgress;
     this.device = null;
@@ -144,7 +144,7 @@ export class BlePrinter {
   }
 
   async print(pixels, width, height, settings = {}) {
-    const rows = [Array(width).fill(0)];
+    const rows = [];
     for (let y = 0; y < height; y++) {
       const row = [];
       for (let x = 0; x < width; x++)

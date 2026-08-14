@@ -4,10 +4,13 @@
 
 #.foobar
 *.png
+!src/assets/app-icon.png
 *.pdf
 *.jpg
 
 release/*
+output/
+.DS_Store
 
 ###############################################################################
 # Ultimate GitIgnore for Javascript/Node.js
@@ -387,4 +390,3 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
-

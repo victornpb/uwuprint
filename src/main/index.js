@@ -11,14 +11,19 @@ const {
 const path = require("path");
 const fs = require("fs");
 const sharp = require("sharp");
-const { dither } = require("./dither.js");
-const packageJson = require("./package.json");
+const { IMAGE_EXTENSIONS, renderImage } = require("./image-processing.js");
+const { cleanupTempFiles, createTempFile } = require("./temp-files.js");
+const {
+  SUPPORTED_PRINTER_NAMES,
+  normalizedPrinterName,
+} = require("../hardware/printer-models.cjs");
+const packageJson = require("../../package.json");
 
 const APP_NAME = packageJson.prodName || packageJson.name;
 const APP_SLUG_NAME = packageJson.name;
 const APP_TAGLINE = packageJson.prodTagline || packageJson.description;
 const APP_VERSION = packageJson.version;
-const APP_ICON_PATH = path.join(__dirname, "app-icon.png");
+const APP_ICON_PATH = path.join(__dirname, "..", "assets", "app-icon.png");
 app.setName(APP_NAME);
 app.setAboutPanelOptions({
   applicationName: APP_NAME,
@@ -27,15 +32,6 @@ app.setAboutPanelOptions({
   copyright: APP_TAGLINE,
 });
 
-const IMAGE_EXTENSIONS = new Set([
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".webp",
-  ".gif",
-  ".tiff",
-  ".bmp",
-]);
 let mainWindow;
 let pendingOpenImages = collectImagePaths(process.argv);
 let rendererReady = false;
@@ -45,26 +41,6 @@ let rememberedSelectionTimeoutMs = 15_000;
 let rememberedSelectionTimer;
 let printerDiscoveryActive = false;
 let printerMenuState = { connected: false, printing: false, hasImages: false };
-const SUPPORTED_PRINTER_NAMES = new Set([
-  "_ZZ00",
-  "GB01",
-  "GB02",
-  "GB03",
-  "GT01",
-  "MX05",
-  "MX06",
-  "MX08",
-  "MX09",
-  "YT01",
-]);
-
-function normalizedPrinterName(name) {
-  return String(name || "")
-    .replace(/\s*\([^)]*\)\s*$/, "")
-    .trim()
-    .toUpperCase();
-}
-
 function collectImagePaths(values) {
   return values.filter(
     (value) =>
@@ -249,7 +225,7 @@ function createWindow() {
     minHeight: 650,
     icon: APP_ICON_PATH,
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(__dirname, "..", "preload", "index.js"),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -305,94 +281,11 @@ function createWindow() {
 
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
   if (devServerUrl) mainWindow.loadURL(devServerUrl);
-  else mainWindow.loadFile(path.join(__dirname, "dist", "index.html"));
+  else mainWindow.loadFile(path.join(__dirname, "..", "..", "dist", "index.html"));
   mainWindow.webContents.once("did-finish-load", () => {
     rendererReady = true;
     flushOpenImages();
   });
-}
-
-function clamp(value, minimum, maximum) {
-  return Math.max(minimum, Math.min(maximum, value));
-}
-
-async function renderImage(inputPath, options = {}) {
-  if (!IMAGE_EXTENSIONS.has(path.extname(inputPath).toLowerCase())) {
-    throw new Error(
-      "Choose a supported image file (PNG, JPEG, WebP, GIF, TIFF, or BMP).",
-    );
-  }
-  let image = sharp(inputPath, { animated: false });
-  const metadata = await image.metadata();
-  const originalPreview = await sharp(inputPath, { animated: false })
-    .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
-    .png()
-    .toBuffer();
-  if (options.crop?.width > 0 && options.crop?.height > 0) {
-    const left = clamp(
-      Math.round(options.crop.left || 0),
-      0,
-      metadata.width - 1,
-    );
-    const top = clamp(
-      Math.round(options.crop.top || 0),
-      0,
-      metadata.height - 1,
-    );
-    image = image.extract({
-      left,
-      top,
-      width: clamp(Math.round(options.crop.width), 1, metadata.width - left),
-      height: clamp(Math.round(options.crop.height), 1, metadata.height - top),
-    });
-  }
-  image = image.rotate(Number(options.rotation) || 0);
-
-  const contrast = Number(options.contrast ?? 1);
-  const brightness = Number(options.brightness ?? 0);
-  let processed = image
-    .flatten({ background: { r: 255, g: 255, b: 255 } })
-    .greyscale()
-    .linear(contrast, brightness);
-  if (options.trimBlank)
-    processed = processed.trim({
-      background: { r: 255, g: 255, b: 255 },
-      threshold: 8,
-    });
-  if (options.invert) processed = processed.negate();
-  const { data, info } = await processed
-    .resize({
-      width: 384,
-      fit: "inside",
-      withoutEnlargement: !options.scaleToWidth,
-    })
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  const padded = Buffer.alloc(384 * info.height, 255);
-  const leftPadding = Math.floor((384 - info.width) / 2);
-  for (let y = 0; y < info.height; y++)
-    data.copy(
-      padded,
-      y * 384 + leftPadding,
-      y * info.width,
-      (y + 1) * info.width,
-    );
-
-  const dithered = dither(padded, 384, info.height, options.dither);
-  dithered.copy(padded);
-
-  const png = await sharp(padded, {
-    raw: { width: 384, height: info.height, channels: 1 },
-  })
-    .png()
-    .toBuffer();
-  return {
-    pixels: padded,
-    width: 384,
-    height: info.height,
-    preview: `data:image/png;base64,${png.toString("base64")}`,
-    original: `data:image/png;base64,${originalPreview.toString("base64")}`,
-  };
 }
 
 ipcMain.handle("choose-images", async () => {
@@ -416,12 +309,13 @@ ipcMain.handle("paste-image", async () => {
   const image = clipboard.readImage();
   if (image.isEmpty()) return null;
 
-  const filePath = path.join(
+  return createTempFile(
     app.getPath("temp"),
-    `${APP_SLUG_NAME}-clipboard-${Date.now()}-${Math.random().toString(16).slice(2)}.png`,
+    APP_SLUG_NAME,
+    "clipboard",
+    ".png",
+    image.toPNG(),
   );
-  await fs.promises.writeFile(filePath, image.toPNG());
-  return filePath;
 });
 
 ipcMain.handle("import-dropped-image", async (_event, bytes, mimeType) => {
@@ -434,14 +328,16 @@ ipcMain.handle("import-dropped-image", async (_event, bytes, mimeType) => {
       "image/bmp": ".bmp",
       "image/tiff": ".tiff",
     }[mimeType] || ".png";
-  const filePath = path.join(
-    app.getPath("temp"),
-    `${APP_SLUG_NAME}-dropped-${Date.now()}-${Math.random().toString(16).slice(2)}${extension}`,
-  );
   try {
     const data = Buffer.from(bytes);
     await sharp(data).metadata();
-    await fs.promises.writeFile(filePath, data);
+    const filePath = createTempFile(
+      app.getPath("temp"),
+      APP_SLUG_NAME,
+      "dropped",
+      extension,
+      data,
+    );
     return { path: filePath, error: null };
   } catch {
     // Safari sometimes labels a drag representation as image/png or image/webp
@@ -467,11 +363,13 @@ ipcMain.handle("import-dropped-image-data-url", async (_event, dataUrl) => {
   const data = Buffer.from(base64, "base64");
   try {
     await sharp(data).metadata();
-    const filePath = path.join(
+    const filePath = createTempFile(
       app.getPath("temp"),
-      `${APP_SLUG_NAME}-dropped-${Date.now()}-${Math.random().toString(16).slice(2)}${extension}`,
+      APP_SLUG_NAME,
+      "dropped",
+      extension,
+      data,
     );
-    await fs.promises.writeFile(filePath, data);
     return { path: filePath, error: null };
   } catch {
     return { path: null, error: "Browser drag did not contain image bytes." };
@@ -629,10 +527,14 @@ app.on("open-file", (event, filePath) => {
 if (!app.requestSingleInstanceLock()) app.quit();
 else
   app.whenReady().then(() => {
+    cleanupTempFiles(app.getPath("temp"), APP_SLUG_NAME);
     if (process.platform === "darwin") app.dock.setIcon(APP_ICON_PATH);
     createApplicationMenu();
     createWindow();
   });
+app.on("will-quit", () => {
+  cleanupTempFiles(app.getPath("temp"), APP_SLUG_NAME);
+});
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
