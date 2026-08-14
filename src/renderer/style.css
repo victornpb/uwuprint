@@ -797,7 +797,17 @@ button.clear-link:hover {
 .controls-body {
   flex: 1;
   overflow-y: auto;
-  padding: 0 16px 72px 16px;
+  padding: 0 16px 16px;
+}
+
+.controls > .bottom-actions {
+	position: static;
+	flex-shrink: 0;
+	background: color-mix(in srgb, var(--sys-sidebar-bg) 95%, transparent);
+}
+
+.controls > .bottom-actions .print {
+	margin-top: 0;
 }
 
 .control-category {
