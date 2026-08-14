@@ -3,7 +3,7 @@ defineProps({ status: { type: Object, required: true } });
 const emit = defineEmits(['refresh']);
 
 function statusClass(field, value, status) {
-	if (field === 'connection') return status.connected ? 'status-ok' : 'status-danger';
+	if (field === 'connection') return status.connected ? 'status-ok' : '';
 	if (field === 'paper' && value === 'Out of paper') return 'status-danger';
 	if (field === 'lid' && value === 'Open') return 'status-warning';
 	if (field === 'temperature' && value === 'Too hot') return 'status-danger';

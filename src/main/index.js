@@ -33,6 +33,9 @@ app.setAboutPanelOptions({
 });
 
 let mainWindow;
+let ditherComparisonWindow;
+let ditherComparisonData;
+let ditherComparisonParent;
 let pendingOpenImages = collectImagePaths(process.argv);
 let rendererReady = false;
 let bluetoothSelection;
@@ -288,6 +291,19 @@ function createWindow() {
   });
 }
 
+function loadDitherComparisonWindow(window) {
+  const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+  if (devServerUrl) {
+    const target = new URL(devServerUrl);
+    target.searchParams.set("dither-comparison", "1");
+    window.loadURL(target.toString());
+  } else {
+    window.loadFile(path.join(__dirname, "..", "..", "dist", "index.html"), {
+      query: { "dither-comparison": "1" },
+    });
+  }
+}
+
 ipcMain.handle("choose-images", async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ["openFile", "multiSelections"],
@@ -303,6 +319,59 @@ ipcMain.handle("choose-images", async () => {
   if (result.canceled) return [];
   addRecentDocuments(result.filePaths);
   return result.filePaths;
+});
+
+ipcMain.handle("open-dither-comparison", (event, image, options) => {
+  if (ditherComparisonWindow && !ditherComparisonWindow.isDestroyed()) {
+    ditherComparisonWindow.focus();
+    return;
+  }
+  const parent = BrowserWindow.fromWebContents(event.sender);
+  ditherComparisonData = { image, options };
+  ditherComparisonParent = parent;
+  ditherComparisonWindow = new BrowserWindow({
+    width: 1200,
+    height: 720,
+    minWidth: 1000,
+    minHeight: 600,
+    parent,
+    title: `${APP_NAME} — Compare dithering`,
+    icon: APP_ICON_PATH,
+    webPreferences: {
+      preload: path.join(__dirname, "..", "preload", "index.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  ditherComparisonWindow.on("closed", () => {
+    ditherComparisonWindow = null;
+    ditherComparisonData = null;
+    ditherComparisonParent = null;
+  });
+  ditherComparisonWindow.webContents.on("page-title-updated", (event) => {
+    event.preventDefault();
+    ditherComparisonWindow?.setTitle(`${APP_NAME} — Compare dithering`);
+  });
+  ditherComparisonWindow.webContents.once("did-finish-load", () => {
+    ditherComparisonWindow?.setTitle(`${APP_NAME} — Compare dithering`);
+  });
+  loadDitherComparisonWindow(ditherComparisonWindow);
+});
+
+ipcMain.handle("get-dither-comparison", (event) => {
+  if (event.sender.id !== ditherComparisonWindow?.webContents.id) return null;
+  return ditherComparisonData;
+});
+
+ipcMain.handle("apply-dither-comparison", (event, dither) => {
+  if (event.sender.id !== ditherComparisonWindow?.webContents.id) return;
+  if (ditherComparisonParent && !ditherComparisonParent.isDestroyed())
+    ditherComparisonParent.webContents.send("dither-comparison-apply", dither);
+  ditherComparisonWindow.close();
+});
+
+ipcMain.handle("close-dither-comparison", (event) => {
+  if (event.sender.id === ditherComparisonWindow?.webContents.id) ditherComparisonWindow.close();
 });
 
 ipcMain.handle("paste-image", async () => {

@@ -1,8 +1,12 @@
 import { createApp } from 'vue';
 import App from './App.vue';
+import DitherComparisonWindow from './DitherComparisonWindow.vue';
 import './style.css';
 
-const app = createApp(App);
+const RootComponent = new URLSearchParams(window.location.search).has('dither-comparison')
+	? DitherComparisonWindow
+	: App;
+const app = createApp(RootComponent);
 
 function showRendererError(error) {
 	const message = error instanceof Error ? error.stack || error.message : String(error);

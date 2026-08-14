@@ -15,6 +15,7 @@ import AppHeader from "./components/AppHeader.vue";
 import StatusStrip from "./components/StatusStrip.vue";
 import PaperToolbar from "./components/PaperToolbar.vue";
 import { usePreferences } from "./composables/usePreferences.js";
+import { DITHERING_OPTIONS } from "./dithering.js";
 import {
   createImageOptions,
   isImagePath,
@@ -89,26 +90,7 @@ const supportedDevices = computed(() =>
 const otherDevices = computed(() =>
   devices.value.filter((device) => !device.supported),
 );
-const ditheringOptions = [
-  { value: "threshold", label: "Threshold" },
-  { value: "random", label: "Random" },
-  { value: "pattern", label: "Pattern" },
-  { value: "ordered-halftone", label: "Ordered (Halftone)" },
-  { value: "ordered-bayer", label: "Ordered (Bayer)" },
-  { value: "ordered-void-cluster", label: "Ordered (Void-and-cluster)" },
-  { value: "riemersma", label: "Riemersma" },
-  { value: "floyd-steinberg", label: "Floyd–Steinberg" },
-  { value: "jarvis-judice-ninke", label: "Jarvis, Judice & Ninke" },
-  { value: "stucki", label: "Stucki" },
-  { value: "burkes", label: "Burkes" },
-  { value: "sierra", label: "Sierra" },
-  { value: "two-row-sierra", label: "Two-row Sierra" },
-  { value: "sierra-lite", label: "Sierra Filter Lite" },
-  { value: "atkinson", label: "Atkinson" },
-  { value: "gradient-based", label: "Gradient-based" },
-  { value: "lattice-boltzmann", label: "Lattice-Boltzmann" },
-  { value: "electrostatic", label: "Electrostatic halftoning" },
-];
+const ditheringOptions = DITHERING_OPTIONS;
 const ditheringIndex = computed(() =>
   ditheringOptions.findIndex((option) => option.value === selected.value?.options.dither),
 );
@@ -117,6 +99,13 @@ function cycleDithering(direction) {
   const currentIndex = ditheringIndex.value < 0 ? 0 : ditheringIndex.value;
   const nextIndex = Math.max(0, Math.min(ditheringOptions.length - 1, currentIndex + direction));
   selected.value.options.dither = ditheringOptions[nextIndex].value;
+}
+async function openDitherComparison() {
+  if (!selected.value) return;
+  await window.desktop.openDitherComparison(
+    { path: selected.value.path, name: selected.value.name },
+    JSON.parse(JSON.stringify(selected.value.options)),
+  );
 }
 function marginLabel(key) {
   return `${marginDisplay(key)} ${preferences.value.printer.marginUnits}`;
@@ -660,6 +649,9 @@ watch(
   },
 );
 onMounted(() => {
+  window.desktop.onDitherComparisonApply((dither) => {
+    if (selected.value) selected.value.options.dither = dither;
+  });
   window.desktop.getAppInfo().then((info) => {
     appInfo.value = info;
     document.title = info.name;
@@ -881,6 +873,8 @@ onBeforeUnmount(() => {
                 @click="cycleDithering(1)">→</button>
             </div>
           </label>
+          <button class="secondary dither-compare" type="button" :disabled="processing"
+            @click="openDitherComparison">Compare dithering</button>
           <div class="main-margin-controls">
             <div class="controls-heading"><strong>Print margins</strong></div>
             <label @mouseenter="hoveredMarginTarget = 'top'" @mouseleave="hoveredMarginTarget = null"><span><input
@@ -1370,4 +1364,10 @@ onBeforeUnmount(() => {
   padding: 5px 0;
   line-height: 1;
 }
+
+.dither-compare {
+  width: 100%;
+  margin: -4px 0 12px;
+}
+
 </style>
