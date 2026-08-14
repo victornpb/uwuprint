@@ -4,7 +4,21 @@ const props = defineProps({
 	preview: { type: String, default: '' },
 	progress: { type: Number, required: true },
 	orientation: { type: String, default: 'top-to-bottom' },
+	transferStats: { type: Object, default: null },
+	showTransferStats: { type: Boolean, default: false },
 });
+
+function formatBytes(bytes) {
+	if (bytes < 1024) return `${Math.round(bytes)} B`;
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function transferLabel() {
+	if (!props.transferStats) return '';
+	const stats = props.transferStats;
+	return `${formatBytes(stats.transferredBytes)} / ${formatBytes(stats.totalBytes)} · ${stats.transferredPackets} / ${stats.totalPackets} packets · Avg ${formatBytes(stats.averageBytesPerSecond)}/s`;
+}
 </script>
 
 <template>
@@ -28,6 +42,7 @@ const props = defineProps({
 				<div class="print-progress-copy">
 					<strong>{{ imageName }}</strong>
 					<div class="print-progress-track"><i :style="{ width: `${progress}%` }" /></div>
+					<p v-if="showTransferStats && transferStats" class="transfer-stats">{{ transferLabel() }}</p>
 				</div>
 			</div>
 		</section>
@@ -175,5 +190,11 @@ const props = defineProps({
 	border-radius: inherit;
 	background: var(--sys-accent);
 	transition: width 0.15s linear;
+}
+
+.print-progress-copy .transfer-stats {
+	margin: 0;
+	color: var(--sys-text-secondary);
+	font-size: 11px;
 }
 </style>

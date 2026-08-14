@@ -16,9 +16,10 @@ const delay = (milliseconds) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export class BlePrinter {
-  constructor(onStatus, onProgress = () => { }) {
+  constructor(onStatus, onProgress = () => { }, onTransferStats = () => { }) {
     this.onStatus = onStatus;
     this.onProgress = onProgress;
+    this.onTransferStats = onTransferStats;
     this.device = null;
     this.writeCharacteristic = null;
     this.paused = false;
@@ -132,19 +133,34 @@ export class BlePrinter {
     }
   }
 
-  async send(data, chunkDelay = 20, reportProgress = false) {
+  reportTransferStats(stats) {
+    const elapsedMs = Math.max(1, performance.now() - stats.startedAt);
+    this.onTransferStats({
+      transferredBytes: stats.transferredBytes,
+      totalBytes: stats.totalBytes,
+      transferredPackets: stats.transferredPackets,
+      totalPackets: stats.totalPackets,
+      averageBytesPerSecond: (stats.transferredBytes / elapsedMs) * 1000,
+    });
+  }
+
+  async send(data, chunkDelay = 20, reportProgress = false, transferStats = null) {
     if (!this.writeCharacteristic)
       throw new Error("Connect the printer first.");
     const delayMs = Math.max(0, Math.min(500, Number(chunkDelay) || 0));
     for (let offset = 0; offset < data.length; offset += 245) {
       while (this.paused) await delay(100);
-      await this.writeCharacteristic.writeValueWithoutResponse(
-        data.slice(offset, offset + 245),
-      );
+      const chunk = data.slice(offset, offset + 245);
+      await this.writeCharacteristic.writeValueWithoutResponse(chunk);
+      if (transferStats) {
+        transferStats.transferredBytes += chunk.length;
+        transferStats.transferredPackets += 1;
+        this.reportTransferStats(transferStats);
+      }
       if (delayMs) await delay(delayMs);
       if (reportProgress)
         this.onProgress(
-          Math.min(100, Math.round(((offset + 245) / data.length) * 100)),
+          Math.min(100, Math.round(((offset + chunk.length) / data.length) * 100)),
         );
     }
   }
@@ -175,20 +191,36 @@ export class BlePrinter {
       : 55;
     const quality = Number(settings.quality);
     const speed = Number(settings.speed);
-    this.onProgress(0);
     const topFeed = settings.marginTopEnabled
       ? Math.max(0, Math.min(500, Number(settings.marginTop) || 0))
       : 0;
-    if (topFeed) await this.send(buildFeedData(topFeed), settings.chunkDelay);
-    await this.send(
-      buildPrintData(rows, energy, { quality, speed }),
-      settings.chunkDelay,
-      true,
-    );
+    const topFeedData = topFeed ? buildFeedData(topFeed) : null;
+    const printData = buildPrintData(rows, energy, {
+      quality,
+      speed,
+      compression: settings.compression,
+    });
+    const postFeedData = settings.postFeedEnabled !== false
+      ? buildFeedData(postFeed)
+      : null;
+    const transferData = [topFeedData, printData, postFeedData].filter(Boolean);
+    const transferStats = {
+      transferredBytes: 0,
+      totalBytes: transferData.reduce((total, data) => total + data.length, 0),
+      transferredPackets: 0,
+      totalPackets: transferData.reduce((total, data) => total + Math.ceil(data.length / 245), 0),
+      startedAt: performance.now(),
+    };
+    this.onProgress(0);
+    this.reportTransferStats(transferStats);
+    if (topFeedData)
+      await this.send(topFeedData, settings.chunkDelay, false, transferStats);
+    await this.send(printData, settings.chunkDelay, true, transferStats);
     await delay(2000);
-    if (settings.postFeedEnabled !== false)
-      await this.send(buildFeedData(postFeed), settings.chunkDelay);
+    if (postFeedData)
+      await this.send(postFeedData, settings.chunkDelay, false, transferStats);
     this.onProgress(100);
+    this.reportTransferStats(transferStats);
   }
 
   disconnect() {

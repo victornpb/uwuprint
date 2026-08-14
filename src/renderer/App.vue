@@ -30,6 +30,7 @@ const originalCanvas = ref(null);
 const processing = ref(false);
 const printing = ref(false);
 const printProgress = ref(0);
+const transferStats = ref(null);
 const postFeedForPrint = ref(true);
 const queueOptions = ref({ pause: true, feedBetween: false });
 const autoContinueSeconds = ref(3);
@@ -67,6 +68,9 @@ const printer = new BlePrinter(
   updatePrinterStatus,
   (progress) => {
     printProgress.value = progress;
+  },
+  (stats) => {
+    transferStats.value = stats;
   },
 );
 let disconnectTimer;
@@ -519,6 +523,7 @@ async function printSelected() {
   if (!selected.value?.pixels) return false;
   printing.value = true;
   printProgress.value = 0;
+  transferStats.value = null;
   try {
     const bottomFeed = preferences.value.printer.marginBottomEnabled
       ? Number(preferences.value.printer.marginBottom) || 0
@@ -534,6 +539,7 @@ async function printSelected() {
       {
         ...preferences.value.printer,
         chunkDelay: preferences.value.advanced.chunkDelay,
+        compression: preferences.value.advanced.compression,
         postFeed: bottomFeed + betweenFeed,
         marginTopEnabled: preferences.value.printer.marginTopEnabled,
         marginTop: preferences.value.printer.marginTop,
@@ -979,13 +985,16 @@ onBeforeUnmount(() => {
         </div>
       </aside>
     </section>
-    <StatusStrip :status="printerStatus" @refresh="refreshStatus" />
+    <StatusStrip :status="printerStatus" :transfer-stats="transferStats"
+      :show-transfer-stats="preferences.advanced.showTransferStats" @refresh="refreshStatus" />
     <PrintProgressDialog
       v-if="printing"
       :image-name="selected?.name || 'Image'"
       :preview="selected?.preview"
       :progress="printProgress"
       :orientation="preferences.printer.orientation"
+      :transfer-stats="transferStats"
+      :show-transfer-stats="preferences.advanced.showTransferStats"
     />
     <div v-if="connecting" class="modal-backdrop">
       <section class="modal connecting-modal">

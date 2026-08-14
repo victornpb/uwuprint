@@ -1,6 +1,22 @@
 <script setup>
-defineProps({ status: { type: Object, required: true } });
+const props = defineProps({
+	status: { type: Object, required: true },
+	transferStats: { type: Object, default: null },
+	showTransferStats: { type: Boolean, default: false },
+});
 const emit = defineEmits(['refresh']);
+
+function formatBytes(bytes) {
+	if (bytes < 1024) return `${Math.round(bytes)} B`;
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function transferLabel() {
+	const stats = props.transferStats;
+	if (!stats) return '';
+	return `${formatBytes(stats.transferredBytes)} / ${formatBytes(stats.totalBytes)} · ${stats.transferredPackets} / ${stats.totalPackets} packets · Avg ${formatBytes(stats.averageBytesPerSecond)}/s`;
+}
 
 function statusClass(field, value, status) {
 	if (field === 'connection') {
@@ -25,6 +41,7 @@ function statusClass(field, value, status) {
 		<span :class="statusClass('temperature', status.temperature, status)"><b>Temperature</b>{{ status.temperature }}</span>
 		<span :class="statusClass('battery', status.battery, status)"><b>Battery</b>{{ status.battery }}</span>
 		<span class="status-message" :class="statusClass('connection', status.message, status)"><b>Status</b>{{ status.message }}</span>
+		<span v-if="showTransferStats && transferStats" class="transfer-stats"><b>Transfer</b>{{ transferLabel() }}</span>
 		<button class="status-refresh clear-link" :disabled="!status.connected" @click="emit('refresh')">Refresh status</button>
 	</section>
 </template>

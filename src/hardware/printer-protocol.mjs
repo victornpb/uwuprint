@@ -56,9 +56,11 @@ function byteEncode(row) {
     return encoded;
 }
 
-function printRow(row) {
+function printRow(row, compression = 'auto') {
     const rle = compressRLE(row);
-    return formatMessage(rle.length < row.length / 8 ? 0xbf : 0xa2, rle.length < row.length / 8 ? rle : byteEncode(row));
+    const useCompression = compression === 'on' ||
+        (compression !== 'off' && rle.length < row.length / 8);
+    return formatMessage(useCompression ? 0xbf : 0xa2, useCompression ? rle : byteEncode(row));
 }
 
 export function buildPrintData(pixelRows, strength = 0x9998, options = {}) {
@@ -75,7 +77,7 @@ export function buildPrintData(pixelRows, strength = 0x9998, options = {}) {
     packets.push(
         formatMessage(0xaf, intTo2bytes(strength)),
         formatMessage(0xa6, [0xaa, 0x55, 0x17, 0x38, 0x44, 0x5f, 0x5f, 0x5f, 0x44, 0x38, 0x2c, 0xa1]),
-        ...pixelRows.map(printRow),
+        ...pixelRows.map((row) => printRow(row, options.compression)),
         formatMessage(0xa6, [0xaa, 0x55, 0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17, 0x11]),
         formatMessage(0xa3),
     );

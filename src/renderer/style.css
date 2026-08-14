@@ -925,6 +925,13 @@ button.clear-link:hover {
   white-space: nowrap;
 }
 
+.status-strip .transfer-stats {
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .picker-disconnect {
   width: calc(100% - 48px);
   margin: 12px 24px 14px;

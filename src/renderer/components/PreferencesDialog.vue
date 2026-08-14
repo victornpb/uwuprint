@@ -52,6 +52,12 @@ defineEmits(['close', 'update:activeTab', 'set-margin', 'feed', 'retract', 'forg
 							<label class="setting-field"><span><strong>Remembered-printer timeout</strong><small>How long Print searches before opening the device list.</small></span><select v-model.number="preferences.advanced.connectTimeout"><option :value="5">5 seconds</option><option :value="10">10 seconds</option><option :value="15">15 seconds (default)</option><option :value="30">30 seconds</option><option :value="60">1 minute</option></select></label>
 						</section>
 						<section class="settings-section"><div class="section-heading"><h3>Connection tuning</h3></div><label class="setting-field"><span><strong>Packet delay</strong><small>Pause between Bluetooth chunks. Increase it if prints are incomplete or scrambled.</small></span><div class="inline-control"><input v-model.number="preferences.advanced.chunkDelay" type="number" min="0" max="500" /><span class="unit">ms</span></div></label></section>
+						<section class="settings-section"><div class="section-heading"><h3>Transfer statistics</h3><p>Show live transfer information while printing.</p></div>
+							<label class="toggle-row"><span><strong>Display transfer stats</strong><small>Show transferred bytes, BLE packets, and average speed in the status bar and print dialog.</small></span><input v-model="preferences.advanced.showTransferStats" type="checkbox" /></label>
+						</section>
+						<section class="settings-section"><div class="section-heading"><h3>Data compression</h3><p>Choose how image rows are compressed before they are sent.</p></div>
+							<label class="setting-field"><span><strong>Compression</strong><small>Auto uses compression when it reduces the packet size. On always uses it; Off sends uncompressed rows.</small></span><select v-model="preferences.advanced.compression"><option value="auto">Auto (default)</option><option value="on">On</option><option value="off">Off</option></select></label>
+						</section>
 					</template>
 					<template v-else-if="activeTab === 'devices'">
 						<section class="settings-section"><div class="section-heading"><h3>Remembered printers</h3><p>Clicking Print searches these printers first.</p></div><p v-if="!rememberedDevices.length" class="muted">No printers remembered yet.</p><div v-for="name in rememberedDevices" :key="name" class="setting-field"><strong>{{ name }}</strong><button class="clear-link" @click="$emit('forget-device', name)">Forget</button></div></section>
