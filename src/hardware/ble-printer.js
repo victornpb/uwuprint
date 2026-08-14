@@ -38,6 +38,17 @@ export class BlePrinter {
 
   async connect() {
     this.manualDisconnect = false;
+    if (typeof navigator.bluetooth.getAvailability === "function") {
+      const available = await navigator.bluetooth.getAvailability();
+      if (!available) {
+        const error = new Error(
+          "Bluetooth is turned off or unavailable on this Mac.",
+        );
+        error.name = "BluetoothUnavailableError";
+        this.update({ connected: false, message: error.message });
+        throw error;
+      }
+    }
     this.update({ connected: false, message: "Searching for nearby printers…" });
     this.device = await navigator.bluetooth.requestDevice({
       acceptAllDevices: true,

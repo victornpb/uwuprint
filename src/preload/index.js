@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld("desktop", {
   selectBluetoothDevice: (deviceId) => ipcRenderer.invoke("select-bluetooth-device", deviceId),
   preparePrinterDiscovery: (names, timeout) => ipcRenderer.sendSync("prepare-printer-discovery", names, timeout),
   cancelBluetoothSelection: () => ipcRenderer.invoke("cancel-bluetooth-selection"),
+  openBluetoothSettings: () => ipcRenderer.invoke("open-bluetooth-settings"),
   showNotification: (notification) => ipcRenderer.invoke("show-notification", notification),
   getAppInfo: () => ipcRenderer.invoke("app-info"),
   setQuitOnWindowClose: (enabled) => ipcRenderer.invoke("set-quit-on-window-close", enabled),

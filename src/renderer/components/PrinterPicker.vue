@@ -7,6 +7,7 @@ const props = defineProps({
 	supportedDevices: { type: Array, required: true },
 	otherDevices: { type: Array, required: true },
 	showOtherDevices: { type: Boolean, required: true },
+	bluetoothUnavailable: { type: Boolean, required: true },
 	isRemembered: { type: Function, required: true },
 });
 
@@ -34,7 +35,12 @@ function selectDevice(device) {
 			<button v-if="connected" class="secondary picker-disconnect" @click="$emit('disconnect')">
 				Disconnect {{ deviceName || 'printer' }}
 			</button>
-			<div class="device-section">
+			<div v-if="bluetoothUnavailable" class="device-section">
+				<h3>Bluetooth is unavailable</h3>
+				<p class="muted">Turn on Bluetooth in System Settings, then try again.</p>
+				<button class="secondary" @click="$emit('open-bluetooth-settings')">Open Bluetooth Settings</button>
+			</div>
+			<div v-else class="device-section">
 				<h3>Supported printers <em>{{ supportedDevices.length }}</em></h3>
 				<button v-for="device in supportedDevices" :key="device.id" :disabled="device.connecting"
 					:class="['device-row', { connecting: device.connecting, connected: isConnectedDevice(device) }]" @click="selectDevice(device)">

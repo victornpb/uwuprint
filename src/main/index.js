@@ -6,6 +6,7 @@ const {
   ipcMain,
   Menu,
   Notification,
+  shell,
   systemPreferences,
 } = require("electron");
 const path = require("path");
@@ -512,6 +513,12 @@ ipcMain.handle("cancel-bluetooth-selection", () => {
   clearTimeout(rememberedSelectionTimer); rememberedSelectionNames = []; printerDiscoveryActive = false;
   if (bluetoothSelection) bluetoothSelection("");
   bluetoothSelection = null;
+});
+ipcMain.handle("open-bluetooth-settings", () => {
+  if (process.platform === "darwin")
+    return shell.openExternal("x-apple.systempreferences:com.apple.Bluetooth");
+  if (process.platform === "win32") return shell.openExternal("ms-settings:bluetooth");
+  return false;
 });
 function preparePrinterDiscovery(names, timeoutSeconds) {
   // macOS rotates BLE identifiers, so a remembered model name is the only

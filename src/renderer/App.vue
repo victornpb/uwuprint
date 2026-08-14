@@ -490,6 +490,12 @@ async function connectThen(action) {
 function isConnectingPrinter() {
   return printerStatus.value.message === "Connecting to printer…";
 }
+function isBluetoothUnavailable() {
+  return printerStatus.value.message === "Bluetooth is turned off or unavailable on this Mac.";
+}
+function openBluetoothSettings() {
+  return window.desktop.openBluetoothSettings();
+}
 async function openNormalPicker() {
   connecting.value = false;
   showPicker.value = true;
@@ -976,16 +982,22 @@ onBeforeUnmount(() => {
       <section class="modal connecting-modal">
         <button class="icon-button connecting-close" aria-label="Cancel printer search" @click="closePicker">×</button>
         <div v-if="printerStatus.connected" class="connecting-icon connected-icon">✓</div>
+        <div v-else-if="isBluetoothUnavailable()" class="connecting-icon">⌁</div>
         <div v-else class="connecting-icon"><i class="spinner" /></div>
         <div class="connecting-copy">
           <h2 v-if="printerStatus.connected">Printer connected</h2>
+          <h2 v-else-if="isBluetoothUnavailable()">Bluetooth is turned off</h2>
           <h2 v-else-if="isConnectingPrinter()">Connecting to printer</h2>
           <h2 v-else>Looking for your printer</h2>
           <p v-if="printerStatus.connected">Getting your action ready…</p>
+          <p v-else-if="isBluetoothUnavailable()">Turn it on in System Settings, then try connecting again.</p>
           <p v-else-if="isConnectingPrinter()">Establishing a Bluetooth connection.</p>
           <p v-else>Make sure it is on, nearby, and not connected to another device.</p>
         </div>
-        <div v-if="!printerStatus.connected && !isConnectingPrinter()" class="connecting-actions">
+        <div v-if="isBluetoothUnavailable()" class="connecting-actions">
+          <button class="secondary" @click="openBluetoothSettings">Open Bluetooth Settings</button>
+        </div>
+        <div v-else-if="!printerStatus.connected && !isConnectingPrinter()" class="connecting-actions">
           <button class="secondary" @click="openNormalPicker">Choose a printer…</button>
         </div>
       </section>
@@ -997,12 +1009,14 @@ onBeforeUnmount(() => {
       :supported-devices="supportedDevices"
       :other-devices="otherDevices"
       :show-other-devices="showOtherDevices"
+      :bluetooth-unavailable="isBluetoothUnavailable()"
       :is-remembered="isRemembered"
       @close="closePicker"
       @disconnect="disconnectPrinter(); showPicker = false"
       @select-device="selectDevice"
       @toggle-other-devices="showOtherDevices = !showOtherDevices"
       @remember-device="setRemembered"
+      @open-bluetooth-settings="openBluetoothSettings"
     />
     <PreferencesDialog
       v-if="showPreferences"
