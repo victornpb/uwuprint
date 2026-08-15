@@ -126,10 +126,10 @@ function createApplicationMenu() {
             click: () => sendMenuAction("preferences"),
           },
           ...(shellIntegration.status().supported
-            ? [
+          ? [
                 {
                   id: "shell-integration-toggle",
-                  label: `Enable ${shellIntegration.status().label}`,
+                  label: `Enable ${process.platform === "darwin" ? "Finder" : "Explorer"} context menu`,
                   type: "checkbox",
                   checked: shellIntegration.status().enabled,
                   click: async (item) => {

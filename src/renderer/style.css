@@ -1095,6 +1095,29 @@ button.clear-link:hover {
   background: transparent;
 }
 
+.section-chevron {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  color: currentColor;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  transition: transform 0.15s ease;
+}
+
+.section-chevron.expanded {
+  transform: rotate(180deg);
+}
+
+button.section-toggle:hover:not(:disabled) {
+  background: var(--sys-sidebar-hover);
+  color: var(--sys-text-primary);
+  box-shadow: none;
+}
+
 .device-row {
   width: 100%;
   display: flex;
@@ -1114,11 +1137,21 @@ button.clear-link:hover {
   background: var(--sys-sidebar-hover);
 }
 
-.device-row > span:nth-child(2) {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.other-device-row:hover:not(:disabled) {
+  background: transparent;
+  box-shadow: none;
+}
+
+.device-row > span:first-child {
+  min-width: 0;
   flex: 1;
+}
+
+.remember-device {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
 }
 
 .device-row strong {
@@ -1131,6 +1164,11 @@ button.clear-link:hover {
 }
 
 .device-row > span:last-child {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  white-space: nowrap;
   color: var(--sys-accent);
   font-weight: 500;
 }

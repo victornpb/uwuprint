@@ -56,12 +56,13 @@ function selectDevice(device) {
 			</div>
 			<div class="device-section">
 				<button class="section-toggle" @click="$emit('toggle-other-devices')">
-					<span>Other Bluetooth devices <em>{{ otherDevices.length }}</em></span><span>{{ showOtherDevices ?
-						'⌃' : '⌄' }}</span>
+					<span>Other Bluetooth devices <em>{{ otherDevices.length }}</em></span>
+					<svg class="section-chevron" :class="{ expanded: showOtherDevices }" viewBox="0 0 16 16"
+						aria-hidden="true" focusable="false"><path d="M4.5 6.25 8 9.75l3.5-3.5" /></svg>
 				</button>
 				<template v-if="showOtherDevices">
 					<button v-for="device in otherDevices" :key="device.id" :disabled="device.connecting"
-						:class="['device-row', { connecting: device.connecting, connected: isConnectedDevice(device) }]"
+						:class="['device-row', 'other-device-row', { connecting: device.connecting, connected: isConnectedDevice(device) }]"
 						@click="selectDevice(device)">
 						<span><strong>{{ device.name }}</strong><small>Bluetooth LE · {{ device.id.slice(-6)
 								}}</small></span>
