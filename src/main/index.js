@@ -25,6 +25,8 @@ const APP_NAME = packageJson.prodName || packageJson.name;
 const APP_SLUG_NAME = packageJson.name;
 const APP_TAGLINE = packageJson.prodTagline || packageJson.description;
 const APP_VERSION = packageJson.version;
+const RELEASES_API_URL = "https://api.github.com/repos/victornpb/uwuprint/releases/latest";
+const RELEASES_URL = "https://github.com/victornpb/uwuprint/releases/latest";
 const APP_ICON_PATH = path.join(__dirname, "..", "assets", "app-icon.png");
 app.setName(APP_NAME);
 app.setAboutPanelOptions({
@@ -90,6 +92,61 @@ function sendMenuAction(action) {
     mainWindow.webContents.send("menu-action", action);
 }
 
+function compareVersions(left, right) {
+  const leftParts = String(left).replace(/^v/i, "").split(".").map(Number);
+  const rightParts = String(right).replace(/^v/i, "").split(".").map(Number);
+  for (let index = 0; index < 3; index++) {
+    const leftPart = Number.isFinite(leftParts[index]) ? leftParts[index] : 0;
+    const rightPart = Number.isFinite(rightParts[index]) ? rightParts[index] : 0;
+    if (leftPart !== rightPart) return leftPart - rightPart;
+  }
+  return 0;
+}
+
+async function fetchUpdateStatus() {
+  const status = {
+    currentVersion: APP_VERSION,
+    latestVersion: null,
+    releaseUrl: RELEASES_URL,
+    available: false,
+    checkedAt: new Date().toISOString(),
+    error: null,
+  };
+  try {
+    const response = await fetch(RELEASES_API_URL, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": APP_SLUG_NAME,
+      },
+    });
+    if (!response.ok) {
+      status.error = `GitHub returned HTTP ${response.status}.`;
+      return status;
+    }
+    const release = await response.json();
+    status.latestVersion = String(release.tag_name || "").replace(/^v/i, "");
+    status.releaseUrl = release.html_url || RELEASES_URL;
+    status.available = compareVersions(status.latestVersion, APP_VERSION) > 0;
+  } catch (error) {
+    status.error = error.message || "Could not check for updates.";
+  }
+  return status;
+}
+
+async function checkForUpdates({ open = false, notify = false } = {}) {
+  const status = await fetchUpdateStatus();
+  if (status.available && notify && Notification.isSupported()) {
+    const notification = new Notification({
+      title: `${APP_NAME} update available`,
+      body: `Version ${status.latestVersion} is ready to download.`,
+    });
+    notification.on("click", () => shell.openExternal(status.releaseUrl));
+    notification.show();
+  }
+  if (status.available && open) await shell.openExternal(status.releaseUrl);
+  return status;
+}
+
 async function setShellIntegrationFromUi(enabled) {
   const state = shellIntegration.setEnabled(enabled);
   const item = Menu.getApplicationMenu()?.getMenuItemById("shell-integration-toggle");
@@ -124,6 +181,10 @@ function createApplicationMenu() {
             label: "Preferences…",
             accelerator: "CommandOrControl+,",
             click: () => sendMenuAction("preferences"),
+          },
+          {
+            label: "Check for Updates…",
+            click: () => void checkForUpdates({ open: true }),
           },
           ...(shellIntegration.status().supported
           ? [
@@ -608,6 +669,19 @@ ipcMain.handle("get-shell-integration", () => shellIntegration.status());
 ipcMain.handle("set-shell-integration", (_event, enabled) =>
   setShellIntegrationFromUi(enabled === true),
 );
+ipcMain.handle("check-for-updates", (_event, options) =>
+  checkForUpdates({ notify: options?.notify === true }),
+);
+ipcMain.handle("open-latest-release", () => shell.openExternal(RELEASES_URL));
+ipcMain.handle("open-external", (_event, value) => {
+  try {
+    const url = new URL(value);
+    if (!["https:", "mailto:"].includes(url.protocol)) return false;
+    return shell.openExternal(url.href).then(() => true);
+  } catch {
+    return false;
+  }
+});
 ipcMain.handle("set-quit-on-window-close", (event, enabled) => {
   if (process.platform !== "darwin") return;
   if (BrowserWindow.fromWebContents(event.sender) !== mainWindow) return;

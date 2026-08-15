@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue';
+import appIcon from '../../assets/app-icon.png';
 
 const marginUnitsSelect = ref(null);
 
@@ -13,13 +14,25 @@ defineProps({
 	preferences: { type: Object, required: true },
 	appInfo: { type: Object, required: true },
 	shellIntegration: { type: Object, required: true },
+	updateStatus: { type: Object, required: true },
 	activeTab: { type: String, required: true },
 	printerStatus: { type: Object, required: true },
 	rememberedDevices: { type: Array, required: true },
 	marginDisplay: { type: Function, required: true },
 });
 
-defineEmits(['close', 'update:activeTab', 'set-margin', 'feed', 'retract', 'forget-device', 'set-shell-integration']);
+const emit = defineEmits(['close', 'update:activeTab', 'set-margin', 'feed', 'retract', 'forget-device', 'set-shell-integration', 'check-for-updates', 'open-latest-release']);
+
+function formatUpdateTime(value) {
+	if (!value) return 'Never';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return 'Unknown';
+	return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+}
+
+function openExternal(url) {
+	void window.desktop.openExternal(url);
+}
 </script>
 
 <template>
@@ -33,6 +46,7 @@ defineEmits(['close', 'update:activeTab', 'set-margin', 'feed', 'retract', 'forg
 					<button :class="{ active: activeTab === 'connection' }" @click="$emit('update:activeTab', 'connection')">📶 Connection</button>
 					<button :class="{ active: activeTab === 'devices' }" @click="$emit('update:activeTab', 'devices')">🖨 Devices</button>
 					<button :class="{ active: activeTab === 'notifications' }" @click="$emit('update:activeTab', 'notifications')">🔔 Notifications</button>
+					<button :class="{ active: activeTab === 'about' }" @click="$emit('update:activeTab', 'about')">ⓘ About</button>
 				</aside>
 				<main class="preferences-content">
 					<template v-if="activeTab === 'general'">
@@ -40,6 +54,7 @@ defineEmits(['close', 'update:activeTab', 'set-margin', 'feed', 'retract', 'forg
 							<label class="setting-field"><span><strong>Theme</strong><small>Select light, dark, or follow system setting.</small></span><select v-model="preferences.appearance.theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
 							<label class="setting-field"><span><strong>Margin units</strong><small>Choose how margin values are displayed.</small></span><select ref="marginUnitsSelect" v-model="preferences.printer.marginUnits"><option value="px">Pixels</option><option value="mm">Millimetres</option></select></label>
 							<label v-if="appInfo.isMacOS" class="toggle-row"><span><strong>Quit when the window is closed</strong><small>Quit the app instead of keeping it open in the Dock when you close the window.</small></span><input v-model="preferences.application.quitOnWindowClose" type="checkbox" /></label>
+							<label class="toggle-row"><span><strong>Check for new versions on startup</strong><small>Get a notification when a new version is available, with a link to its release page.</small></span><input v-model="preferences.application.checkForUpdates" type="checkbox" /></label>
 							<label v-if="shellIntegration.supported" class="toggle-row"><span><strong v-if="shellIntegration.platform === 'darwin'">Finder context menu (Quick Action)</strong><strong v-else>Explorer context menu</strong><small v-if="shellIntegration.platform === 'darwin'">Add “{{ shellIntegration.label }}” to the image context menu in Finder. macOS asks for one-time approval in Finder Extensions.</small><small v-else>Add “{{ shellIntegration.label }}” to image right-click menus in Explorer.</small></span><input :checked="shellIntegration.enabled" type="checkbox" @change="$emit('set-shell-integration', $event.target.checked)" /></label>
 						</section>
 					</template>
@@ -79,6 +94,37 @@ defineEmits(['close', 'update:activeTab', 'set-margin', 'feed', 'retract', 'forg
 					</template>
 					<template v-else-if="activeTab === 'notifications'">
 						<section class="settings-section"><div class="section-heading"><h3>Notifications</h3><p>Choose which printer events you want to be notified</p></div><label class="toggle-row"><span><strong>Notifications</strong><small>Turn on or off all system notifications</small></span><input v-model="preferences.notifications.enabled" type="checkbox" /></label><div :class="['notification-options', { disabled: !preferences.notifications.enabled }]"><label v-for="[key, label] in [['lowBattery', 'Low battery'], ['paper', 'Out of paper'], ['lid', 'Lid open'], ['temperature', 'Printer too hot'], ['printComplete', 'Print complete']]" :key="key" class="toggle-row"><span>{{ label }}</span><input v-model="preferences.notifications[key]" :disabled="!preferences.notifications.enabled" type="checkbox" /></label></div></section>
+					</template>
+					<template v-else-if="activeTab === 'about'">
+						<section class="about-splash">
+							<img class="about-icon" :src="appIcon" :alt="`${appInfo.name} icon`" />
+							<div class="about-wordmark">{{ appInfo.name }}</div>
+							<p>{{ appInfo.tagline }}</p>
+							<button class="about-credit-link" @click="openExternal('https://github.com/victornpb')">Made by Victor</button>
+						</section>
+						<section class="settings-section about-section">
+							<div class="section-heading"><h3>Updates</h3><p>Keep {{ appInfo.name }} current with releases from GitHub.</p></div>
+							<div class="update-details">
+								<div><span>Current version</span><strong>{{ updateStatus.currentVersion || appInfo.version }}</strong></div>
+								<div><span>Latest version</span><strong v-if="updateStatus.latestVersion">{{ updateStatus.latestVersion }}</strong><strong v-else>Not checked</strong></div>
+								<div><span>Last checked</span><strong>{{ formatUpdateTime(updateStatus.checkedAt) }}</strong></div>
+							</div>
+							<p v-if="updateStatus.error" class="update-error">{{ updateStatus.error }}</p>
+							<div class="update-actions">
+								<button class="secondary" :disabled="updateStatus.checking" @click="emit('check-for-updates')"><span v-if="updateStatus.checking">Checking…</span><span v-else>Check for Updates</span></button>
+								<button v-if="updateStatus.available" @click="emit('open-latest-release')">View Update</button>
+							</div>
+						</section>
+						<section class="settings-section about-section support-section">
+							<div class="section-heading"><h3>Support {{ appInfo.name }} ❤️</h3><p>If this app is useful to you, you can support its continued development.</p></div>
+							<button class="secondary" @click="openExternal('https://github.com/sponsors/victornpb')">Support on GitHub Sponsors</button>
+						</section>
+						<section class="settings-section about-section contact-section">
+							<div class="section-heading"><h3>Get in touch</h3><p>Ask a question or help improve {{ appInfo.name }}.</p></div>
+							<div class="about-actions">
+								<button class="secondary" @click="openExternal('https://github.com/victornpb/uwuprint/issues/new')">Report an Issue</button>
+							</div>
+						</section>
 					</template>
 				</main>
 			</div>

@@ -41,6 +41,15 @@ const showPreferences = ref(false);
 const preferencesDialog = ref(null);
 const activePreferenceTab = ref("general");
 const shellIntegration = ref({ supported: false, enabled: false, label: "" });
+const updateStatus = ref({
+  currentVersion: "",
+  latestVersion: null,
+  releaseUrl: "",
+  available: false,
+  checkedAt: null,
+  error: null,
+  checking: false,
+});
 const showOtherDevices = ref(false);
 const hoveredMarginTarget = ref(null);
 const hoveredPauseTarget = ref(null);
@@ -146,6 +155,24 @@ async function setShellIntegration(enabled) {
   } catch (error) {
     window.alert(`Could not update file-manager integration: ${error.message}`);
   }
+}
+async function checkForUpdates(options) {
+  updateStatus.value = { ...updateStatus.value, checking: true, error: null };
+  try {
+    const status = await window.desktop.checkForUpdates(options);
+    updateStatus.value = { ...status, checking: false };
+    preferences.value.application.lastUpdateCheck = status.checkedAt;
+  } catch (error) {
+    updateStatus.value = {
+      ...updateStatus.value,
+      checking: false,
+      checkedAt: new Date().toISOString(),
+      error: error.message || "Could not check for updates.",
+    };
+  }
+}
+function openLatestRelease() {
+  return window.desktop.openLatestRelease();
 }
 function isHoveredMargin(target, enabled) {
   return isMarginPreviewTab() && hoveredMarginTarget.value === target && enabled;
@@ -730,7 +757,11 @@ onMounted(() => {
   window.desktop.getAppInfo().then((info) => {
     appInfo.value = info;
     document.title = info.name;
+    updateStatus.value.currentVersion = info.version;
   });
+  updateStatus.value.checkedAt = preferences.value.application.lastUpdateCheck;
+  if (preferences.value.application.checkForUpdates)
+    void checkForUpdates({ notify: true });
   window.desktop.getShellIntegration().then((state) => {
     shellIntegration.value = state;
   });
@@ -1072,6 +1103,7 @@ onBeforeUnmount(() => {
       :preferences="preferences"
       :app-info="appInfo"
       :shell-integration="shellIntegration"
+      :update-status="updateStatus"
       :active-tab="activePreferenceTab"
       :printer-status="printerStatus"
       :remembered-devices="rememberedDevices"
@@ -1083,6 +1115,8 @@ onBeforeUnmount(() => {
       @retract="retractPaper"
       @forget-device="setRemembered($event, false)"
       @set-shell-integration="setShellIntegration"
+      @check-for-updates="checkForUpdates"
+      @open-latest-release="openLatestRelease"
     />
     <PrintContinuationDialog
       v-if="showContinue"
@@ -1363,6 +1397,117 @@ onBeforeUnmount(() => {
 .toggle-row input {
   flex-shrink: 0;
 }
+
+.about-splash {
+  padding: 38px 24px 30px;
+  border-bottom: 1px solid var(--sys-border);
+  text-align: center;
+}
+
+.about-icon {
+  display: block;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 14px;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.about-wordmark {
+  color: var(--sys-text-primary);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.8px;
+}
+
+.about-splash p {
+  margin: 6px 0 8px;
+  color: var(--sys-text-secondary);
+  font-size: 13px;
+}
+
+.about-splash small,
+.about-credit-link {
+  color: var(--sys-accent);
+  font-size: 11px;
+}
+
+.about-credit-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-weight: 400;
+}
+
+button.about-credit-link:hover:not(:disabled) {
+  color: var(--sys-accent-hover);
+  text-decoration: underline;
+  background: transparent;
+  box-shadow: none;
+}
+
+.about-section {
+  padding-top: 20px;
+}
+
+.update-details {
+  margin-top: 4px;
+  border-top: 1px solid var(--sys-border);
+}
+
+.update-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--sys-border);
+  font-size: 12px;
+}
+
+.update-details span {
+  color: var(--sys-text-secondary);
+}
+
+.update-details strong {
+  font-weight: 500;
+  text-align: right;
+}
+
+.preferences-content p.update-error {
+  margin: 12px 0 0;
+  color: var(--sys-status-danger);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.update-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 14px;
+}
+
+.support-section {
+  padding-bottom: 20px;
+}
+
+.support-section .section-heading,
+.contact-section .section-heading {
+  margin-bottom: 10px;
+}
+
+.contact-section {
+  padding-top: 20px;
+  padding-bottom: 28px;
+}
+
+.about-actions {
+  display: flex;
+  gap: 8px;
+}
+
 
 .toggle-row small {
   color: var(--sys-text-secondary);
