@@ -473,6 +473,49 @@ button.clear-link:hover {
   font-size: 13px;
 }
 
+.queue-empty {
+  padding: 28px 20px;
+  line-height: 1.35;
+}
+
+.canvas-empty {
+  width: min(100%, 430px);
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+  padding: 30px 34px 32px;
+  border: 1px solid var(--sys-border);
+  border-radius: 8px;
+  background: var(--sys-content-bg);
+}
+
+.canvas-empty h2 {
+  margin: 0;
+  color: var(--sys-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.canvas-empty p {
+  max-width: 300px;
+  margin: 0;
+  color: var(--sys-text-secondary);
+  line-height: 1.45;
+}
+
+.empty-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.empty-hint {
+  color: var(--sys-text-secondary);
+  font-size: 11px;
+}
+
 .queue-actions {
   padding: 16px;
   border-top: 1px solid var(--sys-border);

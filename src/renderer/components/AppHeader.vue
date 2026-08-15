@@ -16,7 +16,7 @@ const emit = defineEmits(['select-tab', 'open-picker', 'open-preferences', 'feed
 <template>
   <header>
     <div><h1>{{ appInfo.name }}</h1><p>{{ appInfo.tagline }}</p></div>
-    <nav class="workspace-tabs" aria-label="Workspace view">
+    <nav v-if="queueCount" class="workspace-tabs" aria-label="Workspace view">
       <button :class="{ active: activeTab === 'original' }" @click="emit('select-tab', 'original')">Original</button>
       <button :class="{ active: activeTab === 'preview' }" @click="emit('select-tab', 'preview')">Preview</button>
       <button v-if="queueCount > 1" :class="{ active: activeTab === 'preview-all' }" @click="emit('select-tab', 'preview-all')">Preview all</button>

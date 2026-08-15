@@ -802,8 +802,8 @@ onBeforeUnmount(() => {
             <button class="secondary" @click="pasteFromClipboard">Add from clipboard</button>
           </div>
         </div>
-        <div v-if="!images.length" class="empty">
-          Drop images here<br />or add files.
+        <div v-if="!images.length" class="empty queue-empty">
+          <span>Images you add will appear here.</span>
         </div>
         <div class="image-list">
           <article v-for="(item, index) in queueItems" :key="`${item.image.id}-${item.copyIndex}`"
@@ -917,7 +917,15 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </div>
-        <div v-else class="empty canvas-empty">Add an image to start.</div>
+        <div v-else class="empty canvas-empty">
+          <h2>Start with an image</h2>
+          <p>Drop an image anywhere in this window, or choose a file to prepare it for printing.</p>
+          <div class="empty-actions">
+            <button @click="chooseImages">Choose Image…</button>
+            <button class="secondary" @click="pasteFromClipboard">Paste from Clipboard</button>
+          </div>
+          <span class="empty-hint">PNG, JPEG, GIF, TIFF, BMP, or WebP</span>
+        </div>
       </section>
       <aside class="controls" v-if="selected">
         <div class="controls-heading">
