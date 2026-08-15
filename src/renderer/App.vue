@@ -794,6 +794,10 @@ onMounted(() => {
       "retract-paper": retractPaper,
       "print-image": () => printFromMenu(printSelected),
       "print-all": () => printFromMenu(printAll),
+      about: () => {
+        showPreferences.value = true;
+        activePreferenceTab.value = "about";
+      },
       preferences: () => {
         showPreferences.value = true;
         activePreferenceTab.value = "general";

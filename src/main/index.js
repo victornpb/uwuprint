@@ -186,16 +186,15 @@ function createApplicationMenu() {
       {
         label: APP_NAME,
         submenu: [
-          { role: "about" },
+          {
+            label: `About ${APP_NAME}`,
+            click: () => sendMenuAction("about"),
+          },
           { type: "separator" },
           {
             label: "Preferences…",
             accelerator: "CommandOrControl+,",
             click: () => sendMenuAction("preferences"),
-          },
-          {
-            label: "Check for Updates…",
-            click: () => sendMenuAction("check-for-updates"),
           },
           ...(shellIntegration.status().supported
           ? [
@@ -221,6 +220,11 @@ function createApplicationMenu() {
           { role: "hide" },
           { role: "hideOthers" },
           { role: "unhide" },
+          { type: "separator" },
+          {
+            label: "Check for Updates…",
+            click: () => sendMenuAction("check-for-updates"),
+          },
           { type: "separator" },
           { role: "quit" },
         ],
@@ -284,14 +288,16 @@ function createApplicationMenu() {
           },
           { type: "separator" },
           {
-            id: "printer-feed",
-            label: "Feed Paper",
-            click: () => sendMenuAction("feed-paper"),
-          },
-          {
             id: "printer-retract",
             label: "Retract Paper",
+            accelerator: "PageUp",
             click: () => sendMenuAction("retract-paper"),
+          },
+          {
+            id: "printer-feed",
+            label: "Feed Paper",
+            accelerator: "PageDown",
+            click: () => sendMenuAction("feed-paper"),
           },
           { type: "separator" },
           {
