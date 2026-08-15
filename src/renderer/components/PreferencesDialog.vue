@@ -101,13 +101,13 @@ function openExternal(url) {
 							<img class="about-icon" :src="appIcon" :alt="`${appInfo.name} icon`" />
 							<div class="about-wordmark">{{ appInfo.name }}</div>
 							<p>{{ appInfo.tagline }}</p>
-							<button class="about-credit-link" @click="openExternal('https://github.com/victornpb')">Made by Victor</button>
+							<div class="about-links"><button class="about-credit-link" @click="openExternal('https://github.com/victornpb')">Made by Victor</button></div>
 						</section>
 						<section class="settings-section about-section">
-							<div class="section-heading"><h3>Updates</h3><p>Keep {{ appInfo.name }} current with releases from GitHub.</p></div>
+							<div class="section-heading"><h3>Updates</h3></div>
 							<div class="update-details">
-								<div class="current-version-row"><span>Current version</span><strong>{{ updateStatus.currentVersion || appInfo.version }}</strong></div>
-								<button v-if="updateStatus.latestVersion" class="update-detail-row" @click="emit('open-latest-release')"><span>Latest version</span><strong>{{ updateStatus.latestVersion }}<em v-if="updateStatus.latestPrerelease" class="beta-label">Beta</em></strong></button>
+								<div class="current-version-row" :class="{ 'version-current': updateStatus.latestVersion && !updateStatus.available }"><span>Current version</span><strong>{{ updateStatus.currentVersion || appInfo.version }}<svg v-if="updateStatus.latestVersion && !updateStatus.available" class="version-check" viewBox="0 0 24 24" aria-label="Up to date"><path d="m5 12 4.2 4.2L19 6.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></strong></div>
+								<button v-if="updateStatus.latestVersion" class="update-detail-row" :class="{ 'latest-version-highlight': updateStatus.available }" @click="emit('open-latest-release')"><span>Latest version</span><strong>{{ updateStatus.latestVersion }}<em v-if="updateStatus.latestPrerelease" class="beta-label">Beta</em></strong></button>
 								<div v-else><span>Latest version</span><strong>Not checked</strong></div>
 								<div><span>Last checked</span><strong>{{ formatUpdateTime(updateStatus.checkedAt) }}</strong></div>
 							</div>
@@ -120,9 +120,10 @@ function openExternal(url) {
 						<section class="settings-section about-section support-section">
 							<div class="section-heading"><h3>Support {{ appInfo.name }} ❤️</h3><p>If this app is useful to you, you can support its continued development.</p></div>
 							<div class="about-actions">
-								<button class="secondary" @click="openExternal('https://www.buymeacoffee.com/vitim')">Buy me a coffee</button>
-								<button class="secondary" @click="openExternal('https://github.com/sponsors/victornpb')">Support on GitHub Sponsors</button>
-							</div>
+								<button class="secondary support-action" @click="openExternal('https://www.buymeacoffee.com/vitim')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h12v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M3 20h16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Buy me a coffee</button>
+								<button class="secondary support-action" @click="openExternal('https://github.com/sponsors/victornpb')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.2S4 15.7 4 9.7A4.2 4.2 0 0 1 12 7a4.2 4.2 0 0 1 8 2.7c0 6-8 10.5-8 10.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>GitHub Sponsors</button>
+								<button class="secondary support-action" @click="openExternal('https://github.com/victornpb/uwuprint')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>Star on GitHub</button>
+			</div>
 						</section>
 						<section class="settings-section about-section contact-section">
 							<div class="section-heading"><h3>Get in touch</h3><p>Ask a question or help improve {{ appInfo.name }}.</p></div>

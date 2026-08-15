@@ -1473,6 +1473,14 @@ onBeforeUnmount(() => {
   font-weight: 400;
 }
 
+.about-links {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+}
+
 button.about-credit-link:hover:not(:disabled) {
   color: var(--sys-accent-hover);
   text-decoration: underline;
@@ -1532,6 +1540,28 @@ button.about-credit-link:hover:not(:disabled) {
   cursor: text;
 }
 
+.update-details .version-current strong,
+.update-details .version-current .version-check {
+  color: var(--sys-status-ok);
+}
+
+.version-check {
+  width: 15px;
+  height: 15px;
+  margin-left: 6px;
+  vertical-align: -3px;
+}
+
+.update-details .latest-version-highlight,
+.update-details .latest-version-highlight:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--sys-accent) 12%, transparent);
+}
+
+.update-details .latest-version-highlight span,
+.update-details .latest-version-highlight strong {
+  color: var(--sys-accent);
+}
+
 .beta-label {
   margin-left: 6px;
   color: var(--sys-status-warning);
@@ -1557,6 +1587,30 @@ button.about-credit-link:hover:not(:disabled) {
 
 .support-section {
   padding-bottom: 20px;
+}
+
+.support-section .about-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.support-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 72px;
+  padding: 10px 8px;
+  text-align: center;
+  white-space: normal;
+}
+
+.support-action svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
 }
 
 .support-section .section-heading,

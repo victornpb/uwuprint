@@ -2,9 +2,9 @@
   "name": "uwuprint",
   "prodName": "uwuPrint",
   "prodTagline": "Thermal printer driver",
-  "productName": "UwuPrint",
-  "version": "0.1.2",
-  "description": "Desktop thermal printer driver",
+  "productName": "uwuPrint",
+  "version": "0.1.72",
+  "description": "Cross-platform desktop application for Bluetooth thermal cat printers.",
   "main": "src/main/index.js",
   "scripts": {
     "dev": "node scripts/dev.js",
@@ -32,7 +32,6 @@
     "@vitejs/plugin-vue": "^6.0.5",
     "electron": "^40.6.1",
     "electron-builder": "^26.15.3",
-    "prettier": "^3.7.4",
     "vite": "^7.3.1"
   },
   "optionalDependencies": {

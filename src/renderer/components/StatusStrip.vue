@@ -1,4 +1,6 @@
 <script setup>
+import { onBeforeUnmount, onMounted, reactive } from 'vue';
+
 const props = defineProps({
 	status: { type: Object, required: true },
 	transferStats: { type: Object, default: null },
@@ -6,6 +8,28 @@ const props = defineProps({
 	updateStatus: { type: Object, default: null },
 });
 const emit = defineEmits(['refresh', 'open-latest-release']);
+const callToActions = [
+	{ label: 'Made by Victor', url: 'https://github.com/victornpb' },
+	{ label: 'Support project', url: 'https://www.buymeacoffee.com/vitim' },
+	{ label: 'Report issues', url: 'https://github.com/victornpb/uwuprint/issues/new' },
+	{ label: 'Request feature', url: 'https://github.com/victornpb/uwuprint/issues/new' },
+];
+const callToActionState = reactive({ index: 0 });
+let callToActionTimer;
+
+function openCallToAction() {
+	void window.desktop.openExternal(callToActions[callToActionState.index].url);
+}
+
+onMounted(() => {
+	callToActionTimer = window.setInterval(() => {
+		callToActionState.index = (callToActionState.index + 1) % callToActions.length;
+	}, 30000);
+});
+
+onBeforeUnmount(() => {
+	window.clearInterval(callToActionTimer);
+});
 
 function formatBytes(bytes) {
 	if (bytes < 1024) return `${Math.round(bytes)} B`;
@@ -47,5 +71,6 @@ function statusClass(field, value, status) {
 		</button>
 		<span v-if="showTransferStats && transferStats" class="transfer-stats"><b>Transfer</b>{{ transferLabel() }}</span>
 		<button v-if="updateStatus?.available" class="status-update clear-link" @click="emit('open-latest-release', updateStatus.releaseUrl)">Version {{ updateStatus.latestVersion }} available</button>
+		<button v-else class="status-update status-cta clear-link" @click="openCallToAction">{{ callToActions[callToActionState.index].label }}</button>
 	</section>
 </template>
