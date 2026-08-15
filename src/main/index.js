@@ -272,11 +272,13 @@ function createApplicationMenu() {
           {
             id: "printer-connect",
             label: "Connect…",
+            accelerator: "CommandOrControl+B",
             click: () => sendMenuAction("connect"),
           },
           {
             id: "printer-disconnect",
             label: "Disconnect",
+            accelerator: "CommandOrControl+N",
             click: () => sendMenuAction("disconnect"),
           },
           { type: "separator" },
