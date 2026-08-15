@@ -7,7 +7,7 @@ function escapeRegExp(value) {
 
 function filePattern(prefix) {
 	return new RegExp(
-		`^${escapeRegExp(prefix)}-(clipboard|dropped)-\\d+-[a-f0-9]+\\.(png|jpe?g|webp|gif|bmp|tiff?)$`,
+		`^${escapeRegExp(prefix)}-(clipboard|dropped|example)-\\d+-[a-f0-9]+\\.(png|jpe?g|webp|gif|bmp|tiff?)$`,
 		'i',
 	);
 }

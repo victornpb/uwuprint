@@ -505,6 +505,16 @@ ipcMain.handle("paste-image", async () => {
   );
 });
 
+ipcMain.handle("load-example-image", () =>
+  createTempFile(
+    app.getPath("temp"),
+    APP_SLUG_NAME,
+    "example",
+    ".png",
+    fs.readFileSync(APP_ICON_PATH),
+  ),
+);
+
 ipcMain.handle("import-dropped-image", async (_event, bytes, mimeType) => {
   const extension =
     {

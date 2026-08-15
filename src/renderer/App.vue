@@ -347,6 +347,18 @@ async function chooseImages() {
     };
   }
 }
+async function loadExampleImage() {
+  try {
+    const path = await window.desktop.loadExampleImage();
+    if (!path) throw new Error("The example image could not be loaded.");
+    addImages([path]);
+  } catch (error) {
+    printerStatus.value = {
+      ...printerStatus.value,
+      message: `Could not load the example image: ${error.message}`,
+    };
+  }
+}
 async function pasteFromClipboard() {
   try {
     const { paths: filePaths, formats } = await window.desktop.pasteFiles();
@@ -843,8 +855,13 @@ onBeforeUnmount(() => {
             <button class="secondary" @click="pasteFromClipboard">Add from clipboard</button>
           </div>
         </div>
-        <div v-if="!images.length" class="empty queue-empty">
-          <span>Images you add will appear here.</span>
+        <div v-if="!images.length" class="empty queue-empty" role="status">
+          <svg class="queue-empty-icon" viewBox="0 0 32 32" aria-hidden="true">
+            <rect x="4.5" y="5.5" width="23" height="21" rx="3" />
+            <circle cx="11.5" cy="12" r="2" />
+            <path d="m7.5 23 6-6 4 4 2.5-2.5 4.5 4.5" />
+          </svg>
+          <span>No images in queue</span>
         </div>
         <div class="image-list">
           <article v-for="(item, index) in queueItems" :key="`${item.image.id}-${item.copyIndex}`"
@@ -965,6 +982,7 @@ onBeforeUnmount(() => {
             <button @click="chooseImages">Choose Image…</button>
             <button class="secondary" @click="pasteFromClipboard">Paste from Clipboard</button>
           </div>
+          <button class="clear-link" type="button" @click="loadExampleImage">Load example image</button>
           <span class="empty-hint">PNG, JPEG, GIF, TIFF, BMP, or WebP</span>
         </div>
       </section>
