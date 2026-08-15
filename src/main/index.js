@@ -25,7 +25,7 @@ const APP_NAME = packageJson.prodName || packageJson.name;
 const APP_SLUG_NAME = packageJson.name;
 const APP_TAGLINE = packageJson.prodTagline || packageJson.description;
 const APP_VERSION = packageJson.version;
-const RELEASES_API_URL = "https://api.github.com/repos/victornpb/uwuprint/releases/latest";
+const RELEASES_API_URL = "https://api.github.com/repos/victornpb/uwuprint/releases?per_page=20";
 const RELEASES_URL = "https://github.com/victornpb/uwuprint/releases/latest";
 const APP_ICON_PATH = path.join(__dirname, "..", "assets", "app-icon.png");
 app.setName(APP_NAME);
@@ -103,10 +103,11 @@ function compareVersions(left, right) {
   return 0;
 }
 
-async function fetchUpdateStatus() {
+async function fetchUpdateStatus({ includePrerelease = false } = {}) {
   const status = {
     currentVersion: APP_VERSION,
     latestVersion: null,
+    latestPrerelease: false,
     releaseUrl: RELEASES_URL,
     available: false,
     checkedAt: new Date().toISOString(),
@@ -123,8 +124,18 @@ async function fetchUpdateStatus() {
       status.error = `GitHub returned HTTP ${response.status}.`;
       return status;
     }
-    const release = await response.json();
+    const releases = await response.json();
+    const release = Array.isArray(releases)
+      ? releases.find((item) => item.draft !== true && (includePrerelease || item.prerelease !== true))
+      : null;
+    if (!release) {
+      status.error = includePrerelease
+        ? "No published releases found."
+        : "No stable releases found.";
+      return status;
+    }
     status.latestVersion = String(release.tag_name || "").replace(/^v/i, "");
+    status.latestPrerelease = release.prerelease === true;
     status.releaseUrl = release.html_url || RELEASES_URL;
     status.available = compareVersions(status.latestVersion, APP_VERSION) > 0;
   } catch (error) {
@@ -133,8 +144,8 @@ async function fetchUpdateStatus() {
   return status;
 }
 
-async function checkForUpdates({ open = false, notify = false } = {}) {
-  const status = await fetchUpdateStatus();
+async function checkForUpdates({ includePrerelease = false, open = false, notify = false } = {}) {
+  const status = await fetchUpdateStatus({ includePrerelease });
   if (status.available && notify && Notification.isSupported()) {
     const notification = new Notification({
       title: `${APP_NAME} update available`,
@@ -184,7 +195,7 @@ function createApplicationMenu() {
           },
           {
             label: "Check for Updates…",
-            click: () => void checkForUpdates({ open: true }),
+            click: () => sendMenuAction("check-for-updates"),
           },
           ...(shellIntegration.status().supported
           ? [
@@ -670,7 +681,7 @@ ipcMain.handle("set-shell-integration", (_event, enabled) =>
   setShellIntegrationFromUi(enabled === true),
 );
 ipcMain.handle("check-for-updates", (_event, options) =>
-  checkForUpdates({ notify: options?.notify === true }),
+  checkForUpdates({ includePrerelease: options?.includePrerelease === true, notify: options?.notify === true }),
 );
 ipcMain.handle("open-latest-release", () => shell.openExternal(RELEASES_URL));
 ipcMain.handle("open-external", (_event, value) => {

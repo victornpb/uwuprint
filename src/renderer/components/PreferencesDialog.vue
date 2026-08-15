@@ -55,6 +55,7 @@ function openExternal(url) {
 							<label class="setting-field"><span><strong>Margin units</strong><small>Choose how margin values are displayed.</small></span><select ref="marginUnitsSelect" v-model="preferences.printer.marginUnits"><option value="px">Pixels</option><option value="mm">Millimetres</option></select></label>
 							<label v-if="appInfo.isMacOS" class="toggle-row"><span><strong>Quit when the window is closed</strong><small>Quit the app instead of keeping it open in the Dock when you close the window.</small></span><input v-model="preferences.application.quitOnWindowClose" type="checkbox" /></label>
 							<label class="toggle-row"><span><strong>Check for new versions on startup</strong><small>Get a notification when a new version is available, with a link to its release page.</small></span><input v-model="preferences.application.checkForUpdates" type="checkbox" /></label>
+							<label class="toggle-row"><span><strong>Include pre-release (beta) versions</strong><small>Include beta software when checking for new versions.</small></span><input v-model="preferences.application.includePrerelease" type="checkbox" /></label>
 							<label v-if="shellIntegration.supported" class="toggle-row"><span><strong v-if="shellIntegration.platform === 'darwin'">Finder context menu (Quick Action)</strong><strong v-else>Explorer context menu</strong><small v-if="shellIntegration.platform === 'darwin'">Add “{{ shellIntegration.label }}” to the image context menu in Finder. macOS asks for one-time approval in Finder Extensions.</small><small v-else>Add “{{ shellIntegration.label }}” to image right-click menus in Explorer.</small></span><input :checked="shellIntegration.enabled" type="checkbox" @change="$emit('set-shell-integration', $event.target.checked)" /></label>
 						</section>
 					</template>
@@ -105,8 +106,9 @@ function openExternal(url) {
 						<section class="settings-section about-section">
 							<div class="section-heading"><h3>Updates</h3><p>Keep {{ appInfo.name }} current with releases from GitHub.</p></div>
 							<div class="update-details">
-								<div><span>Current version</span><strong>{{ updateStatus.currentVersion || appInfo.version }}</strong></div>
-								<div><span>Latest version</span><strong v-if="updateStatus.latestVersion">{{ updateStatus.latestVersion }}</strong><strong v-else>Not checked</strong></div>
+								<div class="current-version-row"><span>Current version</span><strong>{{ updateStatus.currentVersion || appInfo.version }}</strong></div>
+								<button v-if="updateStatus.latestVersion" class="update-detail-row" @click="emit('open-latest-release')"><span>Latest version</span><strong>{{ updateStatus.latestVersion }}<em v-if="updateStatus.latestPrerelease" class="beta-label">Beta</em></strong></button>
+								<div v-else><span>Latest version</span><strong>Not checked</strong></div>
 								<div><span>Last checked</span><strong>{{ formatUpdateTime(updateStatus.checkedAt) }}</strong></div>
 							</div>
 							<p v-if="updateStatus.error" class="update-error">{{ updateStatus.error }}</p>

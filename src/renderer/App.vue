@@ -44,6 +44,7 @@ const shellIntegration = ref({ supported: false, enabled: false, label: "" });
 const updateStatus = ref({
   currentVersion: "",
   latestVersion: null,
+  latestPrerelease: false,
   releaseUrl: "",
   available: false,
   checkedAt: null,
@@ -159,9 +160,13 @@ async function setShellIntegration(enabled) {
 async function checkForUpdates(options) {
   updateStatus.value = { ...updateStatus.value, checking: true, error: null };
   try {
-    const status = await window.desktop.checkForUpdates(options);
+    const status = await window.desktop.checkForUpdates({
+      ...(options || {}),
+      includePrerelease: preferences.value.application.includePrerelease,
+    });
     updateStatus.value = { ...status, checking: false };
     preferences.value.application.lastUpdateCheck = status.checkedAt;
+    if (options?.open && status.available) await openLatestRelease();
   } catch (error) {
     updateStatus.value = {
       ...updateStatus.value,
@@ -780,6 +785,7 @@ onMounted(() => {
     const actions = {
       "add-images": chooseImages,
       "add-from-clipboard": pasteFromClipboard,
+      "check-for-updates": () => checkForUpdates({ open: true }),
       "clear-queue": clearQueue,
       connect: openPicker,
       disconnect: disconnectPrinter,
@@ -1465,6 +1471,26 @@ button.about-credit-link:hover:not(:disabled) {
   font-size: 12px;
 }
 
+.update-details .update-detail-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border: 0;
+  border-bottom: 1px solid var(--sys-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--sys-text-primary);
+  box-shadow: none;
+  font-size: 12px;
+  text-align: left;
+}
+
+.update-details .update-detail-row:hover:not(:disabled) {
+  background: var(--sys-sidebar-hover);
+}
+
 .update-details span {
   color: var(--sys-text-secondary);
 }
@@ -1472,6 +1498,19 @@ button.about-credit-link:hover:not(:disabled) {
 .update-details strong {
   font-weight: 500;
   text-align: right;
+}
+
+.update-details .current-version-row strong {
+  user-select: text;
+  cursor: text;
+}
+
+.beta-label {
+  margin-left: 6px;
+  color: var(--sys-status-warning);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
 }
 
 .preferences-content p.update-error {

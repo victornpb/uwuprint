@@ -28,7 +28,7 @@ const DEFAULT_PREFERENCES = {
 	},
 	queue: { cancelCountdownOnMouseMove: true, order: 'first-to-last' },
 	appearance: { theme: 'system' },
-	application: { quitOnWindowClose: false, checkForUpdates: true, lastUpdateCheck: null },
+	application: { quitOnWindowClose: false, checkForUpdates: true, includePrerelease: false, lastUpdateCheck: null },
 	notifications: {
 		enabled: true,
 		lowBattery: true,
