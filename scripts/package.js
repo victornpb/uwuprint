@@ -27,7 +27,10 @@ const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const builderCommand = path.resolve('node_modules/.bin/electron-builder');
 
 function run(command, args) {
-	execFileSync(command, args, { stdio: 'inherit' });
+	execFileSync(command, args, {
+		stdio: 'inherit',
+		shell: process.platform === 'win32',
+	});
 }
 
 function installTargetDependencies(buildTarget) {
