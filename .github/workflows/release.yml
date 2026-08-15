@@ -73,4 +73,4 @@ jobs:
           RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
         run: |
           find release-assets -type f -print0 \
-            | xargs -0 -n 1 gh release upload "$RELEASE_TAG" --clobber
+            | xargs -0 -n 1 gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --clobber
