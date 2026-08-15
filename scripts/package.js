@@ -69,5 +69,5 @@ const buildTargets = target === 'cross' ? ['linux', 'win'] : [target];
 for (const buildTargetName of buildTargets) {
 	const buildTarget = targets[buildTargetName];
 	installTargetDependencies(buildTarget);
-	run(builderCommand, buildTarget.builder);
+	run(builderCommand, [...buildTarget.builder, '--publish=never']);
 }
