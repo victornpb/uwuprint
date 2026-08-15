@@ -53,10 +53,10 @@ function openExternal(url) {
 						<section class="settings-section"><div class="section-heading"><h3>General</h3><p>Choose the application theme.</p></div>
 							<label class="setting-field"><span><strong>Theme</strong><small>Select light, dark, or follow system setting.</small></span><select v-model="preferences.appearance.theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
 							<label class="setting-field"><span><strong>Margin units</strong><small>Choose how margin values are displayed.</small></span><select ref="marginUnitsSelect" v-model="preferences.printer.marginUnits"><option value="px">Pixels</option><option value="mm">Millimetres</option></select></label>
+							<label v-if="shellIntegration.supported" class="toggle-row"><span class="shell-integration-setting"><svg class="shell-integration-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h6l1.8 2h9.2v9.2a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8V6.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M3.5 9.5h17" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span class="shell-integration-copy"><strong v-if="shellIntegration.platform === 'darwin'">Finder context menu (Quick Action)</strong><strong v-else>Explorer context menu</strong><small v-if="shellIntegration.platform === 'darwin'">Add “{{ shellIntegration.label }}” to the image context menu in Finder. macOS asks for one-time approval in Finder Extensions.</small><small v-else>Add “{{ shellIntegration.label }}” to image right-click menus in Explorer.</small></span></span><input :checked="shellIntegration.enabled" type="checkbox" @change="$emit('set-shell-integration', $event.target.checked)" /></label>
 							<label v-if="appInfo.isMacOS" class="toggle-row"><span><strong>Quit when the window is closed</strong><small>Quit the app instead of keeping it open in the Dock when you close the window.</small></span><input v-model="preferences.application.quitOnWindowClose" type="checkbox" /></label>
-							<label class="toggle-row"><span><strong>Check for new versions on startup</strong><small>Get a notification when a new version is available, with a link to its release page.</small></span><input v-model="preferences.application.checkForUpdates" type="checkbox" /></label>
-							<label class="toggle-row"><span><strong>Include pre-release (beta) versions</strong><small>Include beta software when checking for new versions.</small></span><input v-model="preferences.application.includePrerelease" type="checkbox" /></label>
-							<label v-if="shellIntegration.supported" class="toggle-row"><span><strong v-if="shellIntegration.platform === 'darwin'">Finder context menu (Quick Action)</strong><strong v-else>Explorer context menu</strong><small v-if="shellIntegration.platform === 'darwin'">Add “{{ shellIntegration.label }}” to the image context menu in Finder. macOS asks for one-time approval in Finder Extensions.</small><small v-else>Add “{{ shellIntegration.label }}” to image right-click menus in Explorer.</small></span><input :checked="shellIntegration.enabled" type="checkbox" @change="$emit('set-shell-integration', $event.target.checked)" /></label>
+							<label class="toggle-row"><span><strong>Check for updates</strong><small>Check for new versions available on startup.</small></span><input v-model="preferences.application.checkForUpdates" type="checkbox" /></label>
+							<label class="toggle-row nested-toggle-row"><span><strong>Include pre-release (beta) versions</strong><small>Include beta software when checking for updates.</small></span><input v-model="preferences.application.includePrerelease" type="checkbox" /></label>
 						</section>
 					</template>
 					<template v-else-if="activeTab === 'layout'">
@@ -119,7 +119,10 @@ function openExternal(url) {
 						</section>
 						<section class="settings-section about-section support-section">
 							<div class="section-heading"><h3>Support {{ appInfo.name }} ❤️</h3><p>If this app is useful to you, you can support its continued development.</p></div>
-							<button class="secondary" @click="openExternal('https://github.com/sponsors/victornpb')">Support on GitHub Sponsors</button>
+							<div class="about-actions">
+								<button class="secondary" @click="openExternal('https://www.buymeacoffee.com/vitim')">Buy me a coffee</button>
+								<button class="secondary" @click="openExternal('https://github.com/sponsors/victornpb')">Support on GitHub Sponsors</button>
+							</div>
 						</section>
 						<section class="settings-section about-section contact-section">
 							<div class="section-heading"><h3>Get in touch</h3><p>Ask a question or help improve {{ appInfo.name }}.</p></div>

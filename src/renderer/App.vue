@@ -166,7 +166,7 @@ async function checkForUpdates(options) {
     });
     updateStatus.value = { ...status, checking: false };
     preferences.value.application.lastUpdateCheck = status.checkedAt;
-    if (options?.open && status.available) await openLatestRelease();
+    if (options?.open && status.available) await openLatestRelease(status.releaseUrl);
   } catch (error) {
     updateStatus.value = {
       ...updateStatus.value,
@@ -176,8 +176,8 @@ async function checkForUpdates(options) {
     };
   }
 }
-function openLatestRelease() {
-  return window.desktop.openLatestRelease();
+function openLatestRelease(url) {
+  return window.desktop.openLatestRelease(url);
 }
 function isHoveredMargin(target, enabled) {
   return isMarginPreviewTab() && hoveredMarginTarget.value === target && enabled;
@@ -1053,7 +1053,8 @@ onBeforeUnmount(() => {
       </aside>
     </section>
     <StatusStrip :status="printerStatus" :transfer-stats="transferStats"
-      :show-transfer-stats="preferences.advanced.showTransferStats" @refresh="refreshStatus" />
+      :show-transfer-stats="preferences.advanced.showTransferStats" :update-status="updateStatus"
+      @refresh="refreshStatus" @open-latest-release="openLatestRelease" />
     <PrintProgressDialog
       v-if="printing"
       :image-name="selected?.name || 'Image'"
@@ -1166,7 +1167,7 @@ onBeforeUnmount(() => {
 }
 
 .preferences-modal {
-  width: 760px;
+  width: 820px;
   height: calc(100vh - 48px);
   min-height: 420px;
   max-width: 95vw;
@@ -1201,7 +1202,7 @@ onBeforeUnmount(() => {
 }
 
 .preferences-sidebar {
-  width: 180px;
+  width: 160px;
   background: var(--sys-sidebar-bg);
   border-right: 1px solid var(--sys-border);
   padding: 12px 8px;
@@ -1398,6 +1399,32 @@ onBeforeUnmount(() => {
   gap: 2px;
   font-size: 12px;
   flex: 1;
+}
+
+.toggle-row>.shell-integration-setting {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.shell-integration-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--sys-accent);
+}
+
+.shell-integration-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggle-row.nested-toggle-row {
+  margin-left: 27px;
+  padding-top: 8px;
+  border-top: none;
 }
 
 .toggle-row input {

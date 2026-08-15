@@ -27,7 +27,7 @@ contextBridge.exposeInMainWorld("desktop", {
   getShellIntegration: () => ipcRenderer.invoke("get-shell-integration"),
   setShellIntegration: (enabled) => ipcRenderer.invoke("set-shell-integration", enabled),
   checkForUpdates: (options) => ipcRenderer.invoke("check-for-updates", options),
-  openLatestRelease: () => ipcRenderer.invoke("open-latest-release"),
+  openLatestRelease: (url) => ipcRenderer.invoke("open-latest-release", url),
   openExternal: (url) => ipcRenderer.invoke("open-external", url),
   onShellIntegrationChanged: (callback) => ipcRenderer.on("shell-integration-changed", (_event, state) => callback(state)),
   setQuitOnWindowClose: (enabled) => ipcRenderer.invoke("set-quit-on-window-close", enabled),

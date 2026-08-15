@@ -683,7 +683,22 @@ ipcMain.handle("set-shell-integration", (_event, enabled) =>
 ipcMain.handle("check-for-updates", (_event, options) =>
   checkForUpdates({ includePrerelease: options?.includePrerelease === true, notify: options?.notify === true }),
 );
-ipcMain.handle("open-latest-release", () => shell.openExternal(RELEASES_URL));
+ipcMain.handle("open-latest-release", (_event, value) => {
+  let releaseUrl = RELEASES_URL;
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol === "https:" &&
+      url.hostname === "github.com" &&
+      url.pathname.startsWith("/victornpb/uwuprint/releases/")
+    ) {
+      releaseUrl = url.href;
+    }
+  } catch {
+    // Fall back to the releases page when no release URL was supplied.
+  }
+  return shell.openExternal(releaseUrl);
+});
 ipcMain.handle("open-external", (_event, value) => {
   try {
     const url = new URL(value);

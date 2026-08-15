@@ -975,6 +975,11 @@ button.clear-link:hover {
   white-space: nowrap;
 }
 
+.status-strip .status-update {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 .picker-disconnect {
   width: calc(100% - 48px);
   margin: 12px 24px 14px;
@@ -985,12 +990,30 @@ button.clear-link:hover {
   font-weight: 500;
 }
 
-.status-refresh {
-  margin-left: auto;
+.status-strip .status-refresh {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   background: transparent;
   color: var(--sys-text-secondary);
   box-shadow: none;
-  padding: 2px 6px;
+  padding: 2px;
+}
+.status-strip .status-refresh:hover:not(:disabled) {
+  background: var(--sys-sidebar-hover);
+  color: var(--sys-text-primary);
+}
+.status-strip .status-refresh svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 .status-refresh:hover {
   background: var(--sys-sidebar-hover);
