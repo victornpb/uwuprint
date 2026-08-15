@@ -20,6 +20,14 @@ Useful commands:
 - `AGENT=1 npm run build` builds the Vite renderer.
 - `AGENT=1 npm run test` checks Node entrypoints and builds the renderer.
 - `AGENT=1 npm start` builds and launches the production app.
+- `AGENT=1 npm run make:mac` packages macOS as DMG and ZIP.
+- `AGENT=1 npm run make:win` packages Windows x64 as NSIS installer and portable EXE.
+- `AGENT=1 npm run make:linux` packages Linux x64 as AppImage and DEB.
+- `AGENT=1 npm run make:cross` packages Windows and Linux x64 from macOS.
+
+Windows NSIS, portable, AppImage, and DEB packages can all be built directly from macOS. The
+cross-build scripts install the matching `sharp` native binary for each target platform before
+packaging.
 
 Clipboard and dropped-image imports use the operating system temp directory
 while they are queued. uwuPrint removes only its own matching temp files at

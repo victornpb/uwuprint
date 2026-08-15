@@ -3,18 +3,26 @@
   "prodName": "uwuPrint",
   "prodTagline": "Thermal printer driver",
   "productName": "UwuPrint",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "description": "Desktop thermal printer driver",
   "main": "src/main/index.js",
   "scripts": {
     "dev": "node scripts/dev.js",
     "start": "npm run build && electron .",
     "build": "vite build",
-    "test": "node --check src/main/index.js && node --check src/main/shell-integration.js && node --check src/main/image-processing.js && node --check src/main/temp-files.js && node --check src/preload/index.js && node --check src/main/dither.js && node --check src/hardware/printer-models.cjs && node --check src/hardware/ble-printer.js && node --check src/hardware/printer-protocol.mjs && node --check src/renderer/settings.js && node --check src/renderer/composables/usePreferences.js && node --check scripts/dev.js && npm run build",
+    "test": "node --check src/main/index.js && node --check src/main/shell-integration.js && node --check src/main/image-processing.js && node --check src/main/temp-files.js && node --check src/preload/index.js && node --check src/main/dither.js && node --check src/hardware/printer-models.cjs && node --check src/hardware/ble-printer.js && node --check src/hardware/printer-protocol.mjs && node --check src/renderer/settings.js && node --check src/renderer/composables/usePreferences.js && node --check scripts/dev.js && node --check scripts/package.js && npm run build",
     "package": "npm run build && electron-builder --dir",
-    "make:mac": "npm run build && electron-builder --mac"
+    "make:mac": "node scripts/package.js mac",
+    "make:win": "node scripts/package.js win",
+    "make:linux": "node scripts/package.js linux",
+    "make:cross": "node scripts/package.js cross"
   },
-  "author": "Victornpb",
+  "author": {
+    "name": "Victor",
+    "email": "victornpb@users.noreply.github.com",
+    "url": "https://github.com/victornpb"
+  },
+  "homepage": "https://github.com/victornpb/uwuprint",
   "license": "UNLICENSED",
   "dependencies": {
     "sharp": "^0.33.5",
@@ -26,6 +34,12 @@
     "electron-builder": "^26.15.3",
     "prettier": "^3.7.4",
     "vite": "^7.3.1"
+  },
+  "optionalDependencies": {
+    "@img/sharp-darwin-arm64": "0.33.5",
+    "@img/sharp-darwin-x64": "0.33.5",
+    "@img/sharp-linux-x64": "0.33.5",
+    "@img/sharp-win32-x64": "0.33.5"
   },
   "build": {
     "appId": "com.victornpb.uwuprint",
@@ -51,7 +65,18 @@
       ]
     },
     "win": {
-      "icon": "src/assets/app-icon.png"
+      "icon": "src/assets/app-icon.png",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "category": "Graphics",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
     },
     "asarUnpack": [
       "node_modules/sharp/**/*"
