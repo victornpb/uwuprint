@@ -40,6 +40,7 @@ const showPicker = ref(false);
 const showPreferences = ref(false);
 const preferencesDialog = ref(null);
 const activePreferenceTab = ref("general");
+const shellIntegration = ref({ supported: false, enabled: false, label: "" });
 const showOtherDevices = ref(false);
 const hoveredMarginTarget = ref(null);
 const hoveredPauseTarget = ref(null);
@@ -138,6 +139,13 @@ function marginHighlightHeight(key) {
 }
 function isMarginPreviewTab() {
   return activeWorkspaceTab.value === "preview" || activeWorkspaceTab.value === "preview-all";
+}
+async function setShellIntegration(enabled) {
+  try {
+    shellIntegration.value = await window.desktop.setShellIntegration(enabled);
+  } catch (error) {
+    window.alert(`Could not update file-manager integration: ${error.message}`);
+  }
 }
 function isHoveredMargin(target, enabled) {
   return isMarginPreviewTab() && hoveredMarginTarget.value === target && enabled;
@@ -723,6 +731,12 @@ onMounted(() => {
     appInfo.value = info;
     document.title = info.name;
   });
+  window.desktop.getShellIntegration().then((state) => {
+    shellIntegration.value = state;
+  });
+  window.desktop.onShellIntegrationChanged((state) => {
+    shellIntegration.value = state;
+  });
   window.desktop.getAccentColor?.().then((color) => {
     document.documentElement.style.setProperty("--os-accent", color);
   });
@@ -1049,6 +1063,7 @@ onBeforeUnmount(() => {
       v-if="showPreferences"
       :preferences="preferences"
       :app-info="appInfo"
+      :shell-integration="shellIntegration"
       :active-tab="activePreferenceTab"
       :printer-status="printerStatus"
       :remembered-devices="rememberedDevices"
@@ -1059,6 +1074,7 @@ onBeforeUnmount(() => {
       @feed="feedPaper"
       @retract="retractPaper"
       @forget-device="setRemembered($event, false)"
+      @set-shell-integration="setShellIntegration"
     />
     <PrintContinuationDialog
       v-if="showContinue"

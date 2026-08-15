@@ -12,13 +12,14 @@ defineExpose({ focusMarginUnits });
 defineProps({
 	preferences: { type: Object, required: true },
 	appInfo: { type: Object, required: true },
+	shellIntegration: { type: Object, required: true },
 	activeTab: { type: String, required: true },
 	printerStatus: { type: Object, required: true },
 	rememberedDevices: { type: Array, required: true },
 	marginDisplay: { type: Function, required: true },
 });
 
-defineEmits(['close', 'update:activeTab', 'set-margin', 'feed', 'retract', 'forget-device']);
+defineEmits(['close', 'update:activeTab', 'set-margin', 'feed', 'retract', 'forget-device', 'set-shell-integration']);
 </script>
 
 <template>
@@ -39,6 +40,7 @@ defineEmits(['close', 'update:activeTab', 'set-margin', 'feed', 'retract', 'forg
 							<label class="setting-field"><span><strong>Theme</strong><small>Select light, dark, or follow system setting.</small></span><select v-model="preferences.appearance.theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
 							<label class="setting-field"><span><strong>Margin units</strong><small>Choose how margin values are displayed.</small></span><select ref="marginUnitsSelect" v-model="preferences.printer.marginUnits"><option value="px">Pixels</option><option value="mm">Millimetres</option></select></label>
 							<label v-if="appInfo.isMacOS" class="toggle-row"><span><strong>Quit when the window is closed</strong><small>Quit the app instead of keeping it open in the Dock when you close the window.</small></span><input v-model="preferences.application.quitOnWindowClose" type="checkbox" /></label>
+							<label v-if="shellIntegration.supported" class="toggle-row"><span><strong>{{ shellIntegration.label }}</strong><small v-if="shellIntegration.platform === 'darwin'">Install a Finder Quick Action for selected images. macOS asks for one-time approval in Finder Extensions.</small><small v-else>Add this app’s Print item to image right-click menus in Explorer.</small></span><input :checked="shellIntegration.enabled" type="checkbox" @change="$emit('set-shell-integration', $event.target.checked)" /></label>
 						</section>
 					</template>
 					<template v-else-if="activeTab === 'layout'">

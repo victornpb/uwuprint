@@ -14,6 +14,7 @@ const fs = require("fs");
 const sharp = require("sharp");
 const { IMAGE_EXTENSIONS, renderImage } = require("./image-processing.js");
 const { cleanupTempFiles, createTempFile } = require("./temp-files.js");
+const { createShellIntegration } = require("./shell-integration.js");
 const {
   SUPPORTED_PRINTER_NAMES,
   normalizedPrinterName,
@@ -46,6 +47,7 @@ let rememberedSelectionTimer;
 let printerDiscoveryActive = false;
 let printerMenuState = { connected: false, printing: false, hasImages: false };
 let quitOnWindowClose = false;
+const shellIntegration = createShellIntegration(app);
 function collectImagePaths(values) {
   return values.filter(
     (value) =>
@@ -88,6 +90,28 @@ function sendMenuAction(action) {
     mainWindow.webContents.send("menu-action", action);
 }
 
+async function setShellIntegrationFromUi(enabled) {
+  const state = shellIntegration.setEnabled(enabled);
+  const item = Menu.getApplicationMenu()?.getMenuItemById("shell-integration-toggle");
+  if (item) item.checked = state.enabled;
+  if (!mainWindow?.isDestroyed())
+    mainWindow.webContents.send("shell-integration-changed", state);
+  if (enabled && process.platform === "darwin") {
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: "info",
+      title: "Enable the Finder Quick Action",
+      message: "Allow the Quick Action in macOS",
+      detail: `In Login Items & Extensions, choose By Category, open Finder, then enable “${state.label}”. macOS requires this one-time approval.`,
+      buttons: ["Open System Settings", "Later"],
+      defaultId: 0,
+      cancelId: 1,
+    });
+    if (result.response === 0)
+      await shell.openExternal("x-apple.systempreferences:com.apple.LoginItems-Settings.extension");
+  }
+  return state;
+}
+
 function createApplicationMenu() {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
@@ -101,6 +125,24 @@ function createApplicationMenu() {
             accelerator: "CommandOrControl+,",
             click: () => sendMenuAction("preferences"),
           },
+          ...(shellIntegration.status().supported
+            ? [
+                {
+                  id: "shell-integration-toggle",
+                  label: `Enable ${shellIntegration.status().label}`,
+                  type: "checkbox",
+                  checked: shellIntegration.status().enabled,
+                  click: async (item) => {
+                    try {
+                      await setShellIntegrationFromUi(item.checked);
+                    } catch (error) {
+                      item.checked = shellIntegration.status().enabled;
+                      dialog.showErrorBox("Could not update file-manager integration", error.message);
+                    }
+                  },
+                },
+              ]
+            : []),
           { type: "separator" },
           { role: "services" },
           { type: "separator" },
@@ -562,6 +604,10 @@ ipcMain.handle("app-info", () => ({
   version: APP_VERSION,
   isMacOS: process.platform === "darwin",
 }));
+ipcMain.handle("get-shell-integration", () => shellIntegration.status());
+ipcMain.handle("set-shell-integration", (_event, enabled) =>
+  setShellIntegrationFromUi(enabled === true),
+);
 ipcMain.handle("set-quit-on-window-close", (event, enabled) => {
   if (process.platform !== "darwin") return;
   if (BrowserWindow.fromWebContents(event.sender) !== mainWindow) return;
@@ -615,6 +661,13 @@ else
   app.whenReady().then(() => {
     cleanupTempFiles(app.getPath("temp"), APP_SLUG_NAME);
     if (process.platform === "darwin") app.dock.setIcon(APP_ICON_PATH);
+    // Refresh older workflow formats without preventing the app from opening
+    // if macOS Services is temporarily unavailable.
+    try {
+      shellIntegration.refresh();
+    } catch (error) {
+      console.warn("Could not refresh the Finder integration:", error.message);
+    }
     createApplicationMenu();
     createWindow();
   });
