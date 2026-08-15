@@ -775,7 +775,6 @@ onBeforeUnmount(() => {
 			:margin-display="marginDisplay" :set-margin="setMargin"
       @select-tab="(tab) => { activeWorkspaceTab = tab; if (tab === 'original') ensureOriginalPreview(selected).then(() => nextTick(drawOriginalCanvas)); }"
       @open-picker="openPicker" @open-preferences="showPreferences = true; activePreferenceTab = 'general'"
-      @open-margin-settings="openMarginSettings"
       @feed="feedPaper" @retract="retractPaper" />
     <section class="layout">
       <aside class="queue">

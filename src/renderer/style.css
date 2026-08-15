@@ -108,6 +108,12 @@ header p {
   font-size: 12px;
 }
 
+@media (max-width: 1050px) {
+  header p {
+    display: none;
+  }
+}
+
 .workspace-tabs {
   position: absolute;
   left: 50%;
@@ -282,37 +288,6 @@ button.clear-link:hover {
 
 .dot.connected {
   background: #34c759; /* iOS/macOS green */
-}
-
-.paper-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0;
-  background: transparent;
-  font-size: 11px;
-  -webkit-app-region: no-drag;
-}
-
-.paper-toolbar strong {
-  margin-right: 2px;
-  color: var(--sys-text-secondary);
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.paper-toolbar input {
-  width: 52px;
-  padding: 3px 5px;
-  border: 1px solid var(--sys-control-border);
-  border-radius: 4px;
-  text-align: right;
-}
-
-.paper-toolbar button {
-  padding: 3px 7px;
-  font-size: 11px;
 }
 
 /* --- MAIN LAYOUT --- */

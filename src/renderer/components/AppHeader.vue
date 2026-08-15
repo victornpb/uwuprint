@@ -11,7 +11,7 @@ defineProps({
 	marginDisplay: { type: Function, required: true },
 	setMargin: { type: Function, required: true },
 });
-const emit = defineEmits(['select-tab', 'open-picker', 'open-preferences', 'open-margin-settings', 'feed', 'retract']);
+const emit = defineEmits(['select-tab', 'open-picker', 'open-preferences', 'feed', 'retract']);
 </script>
 <template>
   <header>
@@ -22,7 +22,7 @@ const emit = defineEmits(['select-tab', 'open-picker', 'open-preferences', 'open
       <button v-if="queueCount > 1" :class="{ active: activeTab === 'preview-all' }" @click="emit('select-tab', 'preview-all')">Preview all</button>
     </nav>
     <div class="connection">
-      <PaperToolbar :preferences="preferences" :margin-display="marginDisplay" :set-margin="setMargin" @feed="emit('feed')" @retract="emit('retract')" @open-settings="emit('open-margin-settings')" />
+      <PaperToolbar :preferences="preferences" :margin-display="marginDisplay" :set-margin="setMargin" @feed="emit('feed')" @retract="emit('retract')" />
       <button class="connection-badge" title="Choose printer" @click="emit('open-picker')"><span :class="['dot', { connected }]" />{{ connected ? deviceName || 'Connected' : 'No printer' }}<span class="connection-chevron" aria-hidden="true" /></button>
       <button class="icon-button" title="Preferences" @click="emit('open-preferences')">⚙️</button>
     </div>
