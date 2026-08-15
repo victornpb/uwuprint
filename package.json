@@ -3,7 +3,7 @@
   "prodName": "uwuPrint",
   "prodTagline": "Thermal printer driver",
   "productName": "UwuPrint",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "description": "Desktop thermal printer driver",
   "main": "src/main/index.js",
   "scripts": {
