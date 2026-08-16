@@ -6,10 +6,10 @@ const state = reactive({ logs: [], showTimestamps: true, bluetoothLogging: false
 const logList = ref(null);
 useTheme();
 const levels = ['debug', 'log', 'info', 'warn', 'error'];
-const scopes = computed(() => [...new Set(state.logs.map((entry) => entry.scope || entry.source).filter(Boolean))].sort());
+const scopes = computed(() => [...new Set(state.logs.map((entry) => entry.scope).filter(Boolean))].sort());
 const visibleLogs = computed(() => state.logs.filter((entry) =>
 	(state.levelFilter === 'all' || entry.level === state.levelFilter) &&
-	(state.scopeFilter === 'all' || (entry.scope || entry.source) === state.scopeFilter),
+	(state.scopeFilter === 'all' || entry.scope === state.scopeFilter),
 ));
 
 function scrollToTop() {
@@ -30,8 +30,31 @@ function handleScroll() {
 	state.atBottom = distanceFromBottom <= 4;
 }
 
+function handleCopy(event) {
+	const selection = window.getSelection();
+	if (!selection || !selection.toString() || !logList.value?.contains(selection.anchorNode)) return;
+	const rows = [...logList.value.querySelectorAll('tr')]
+		.filter((row) => selection.containsNode(row, true))
+		.map((row) => visibleLogs.value[Number(row.dataset.logIndex)]);
+	if (!rows.length) return;
+	const columns = rows.map((entry) => [
+		...(state.showTimestamps ? [entry.timestamp] : []),
+		entry.level,
+		entry.scope,
+		String(entry.message).replace(/\r?\n/g, '\\n').replace(/\t/g, '\\t'),
+	].join('\t'));
+	event.clipboardData.setData('text/plain', columns.join('\n'));
+	event.preventDefault();
+}
+
 async function setBluetoothLogging(enabled) {
 	state.bluetoothLogging = (await window.desktop.setLogOptions({ bluetooth: enabled })).bluetooth;
+}
+
+async function clearLogs() {
+	await window.desktop.clearLogs();
+	state.logs = [];
+	state.atBottom = true;
 }
 
 onMounted(async () => {
@@ -72,17 +95,22 @@ onMounted(async () => {
 				</select>
 				<button class="secondary" type="button" :disabled="!visibleLogs.length" @click="scrollToTop">Top</button>
 				<button class="secondary" type="button" :disabled="!visibleLogs.length" @click="scrollToBottom">Bottom</button>
+				<button class="secondary clear-logs" type="button" :disabled="!state.logs.length" @click="clearLogs">Clear</button>
 				<span v-if="state.logs.length">{{ visibleLogs.length }} / {{ state.logs.length }}</span>
 			</div>
 		</header>
-		<section v-if="state.logs.length" ref="logList" class="log-list" aria-live="polite" @scroll="handleScroll">
-			<article v-for="(entry, index) in visibleLogs" :key="`${entry.timestamp}-${index}`" class="log-entry" :class="{ 'timestamps-hidden': !state.showTimestamps }">
-				<time v-if="state.showTimestamps">{{ entry.timestamp }}</time>
-				<strong :class="`log-${entry.level}`">{{ entry.level }}</strong>
-				<span class="log-scope">{{ entry.scope || entry.source }}</span>
-				<span class="log-source">{{ entry.source }}</span>
-				<pre>{{ entry.message }}</pre>
-			</article>
+		<section v-if="state.logs.length" ref="logList" class="log-list" aria-live="polite" @scroll="handleScroll" @copy="handleCopy">
+			<table v-if="visibleLogs.length" class="log-table" :class="{ 'timestamps-hidden': !state.showTimestamps }">
+				<tbody>
+					<tr v-for="(entry, index) in visibleLogs" :key="`${entry.timestamp}-${index}`" :data-log-index="index" class="log-entry">
+						<td v-if="state.showTimestamps"><time>{{ entry.timestamp }}</time></td>
+						<td><strong :class="`log-${entry.level}`">{{ entry.level }}</strong></td>
+						<td class="log-scope">{{ entry.scope }}</td>
+						<td><pre>{{ entry.message }}</pre></td>
+					</tr>
+				</tbody>
+			</table>
+			<p v-else class="empty-logs">No entries match the current filters.</p>
 		</section>
 		<p v-else class="empty-logs">No activity has been logged yet.</p>
 	</main>
@@ -154,18 +182,45 @@ p,
 	font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-.log-entry {
-	display: grid;
-	grid-template-columns: 82px 52px 70px 52px minmax(0, 1fr);
-	gap: 10px;
-	align-items: baseline;
-	padding: 5px 20px;
-	border-bottom: 1px solid color-mix(in srgb, var(--sys-border), transparent 45%);
+.log-table {
+	width: 100%;
+	border-collapse: collapse;
+	table-layout: fixed;
 	user-select: text;
 }
 
-.log-entry.timestamps-hidden {
-	grid-template-columns: 52px 70px 52px minmax(0, 1fr);
+.log-entry {
+	border-bottom: 1px solid color-mix(in srgb, var(--sys-border), transparent 45%);
+}
+
+.log-entry td {
+	padding: 5px 10px;
+	vertical-align: baseline;
+}
+
+.log-entry td:first-child {
+	width: 110px;
+	padding-left: 20px;
+}
+
+.log-entry time {
+	white-space: nowrap;
+}
+
+.log-entry td:nth-child(2) {
+	width: 52px;
+}
+
+.log-entry td:nth-child(3) {
+	width: 150px;
+}
+
+.log-table.timestamps-hidden .log-entry td:first-child {
+	width: 52px;
+}
+
+.log-table.timestamps-hidden .log-entry td:nth-child(2) {
+	width: 150px;
 }
 
 time,

@@ -66,11 +66,10 @@ function formatLogValue(value) {
   }
 }
 
-function appendLog(level, message, source = "main", scope = source) {
+function appendLog(level, message, scope = "main") {
   logEntries.push({
     timestamp: new Date().toLocaleTimeString(),
     level,
-    source,
     scope,
     message: String(message),
   });
@@ -84,7 +83,7 @@ const nativeConsoleError = console.error;
 for (const level of ["log", "info", "debug", "warn", "error"]) {
   const original = console[level];
   console[level] = (...args) => {
-    appendLog(level, args.map(formatLogValue).join(" "), "main", "main");
+    appendLog(level, args.map(formatLogValue).join(" "), "main");
     original(...args);
   };
 }
@@ -128,11 +127,11 @@ function createLogsWindow() {
 }
 
 process.on("uncaughtExceptionMonitor", (error, origin) => {
-  appendLog("error", `${origin}: ${formatLogValue(error)}`, "main", "process");
+  appendLog("error", `${origin}: ${formatLogValue(error)}`, "process");
 });
 
 process.on("unhandledRejection", (reason) => {
-  appendLog("error", `Unhandled promise rejection: ${formatLogValue(reason)}`, "main", "process");
+  appendLog("error", `Unhandled promise rejection: ${formatLogValue(reason)}`, "process");
   nativeConsoleError("Unhandled promise rejection:", reason);
 });
 function collectImagePaths(values) {
@@ -805,6 +804,12 @@ ipcMain.handle("open-latest-release", (_event, value) => {
 });
 ipcMain.handle("open-logs", () => createLogsWindow());
 ipcMain.handle("get-logs", () => logEntries);
+ipcMain.handle("clear-logs", () => {
+  logEntries.splice(0, logEntries.length);
+  if (logsWindow && !logsWindow.isDestroyed())
+    logsWindow.webContents.send("logs-updated", logEntries);
+  return true;
+});
 ipcMain.handle("get-log-options", () => logOptions);
 ipcMain.handle("set-log-options", (_event, options) => {
   logOptions = { ...logOptions, bluetooth: options?.bluetooth === true };
@@ -812,13 +817,13 @@ ipcMain.handle("set-log-options", (_event, options) => {
     if (!window.isDestroyed() && !window.webContents.isDestroyed())
       window.webContents.send("log-options-changed", logOptions);
   }
-  appendLog("info", `Bluetooth communication logging ${logOptions.bluetooth ? "enabled" : "disabled"}.`, "main", "logging");
+  appendLog("info", `Bluetooth communication logging ${logOptions.bluetooth ? "enabled" : "disabled"}.`, "logging");
   return logOptions;
 });
 ipcMain.on("append-log", (_event, level, scope, message) => {
   if (!["log", "info", "debug", "warn", "error"].includes(level)) return;
   if (typeof scope !== "string" || typeof message !== "string") return;
-  appendLog(level, message, "renderer", scope);
+  appendLog(level, message, scope);
 });
 ipcMain.handle("open-external", (_event, value) => {
   try {

@@ -24,6 +24,10 @@ const COMMAND_NAMES = {
 };
 const formatHex = (data) => Array.from(data, (value) => value.toString(16).padStart(2, "0")).join(" ");
 const commandName = (command) => COMMAND_NAMES[command] || `0x${command.toString(16).padStart(2, "0")}`;
+const describeProperties = (properties) => Object.entries(properties || {})
+  .filter(([, enabled]) => enabled)
+  .map(([name]) => name)
+  .join(", ") || "none";
 
 function describeFrames(data) {
   const frames = [];
@@ -81,9 +85,9 @@ export class BlePrinter {
     };
   }
 
-  log(level, message) {
-    if (!this.bluetoothLogging) return;
-    this.onLog(level, "printer", message);
+  log(level, message, scope = "bluetooth.driver") {
+    if (!this.bluetoothLogging && level === "debug") return;
+    this.onLog(level, scope, message);
   }
 
   setLoggingOptions(options) {
@@ -139,17 +143,44 @@ export class BlePrinter {
     this.log("info", "Opening GATT connection.");
     const server = await device.gatt.connect();
     ensureCurrent();
-    this.log("info", "GATT connection opened; resolving printer service.");
-    const service = await server.getPrimaryService(SERVICE_UUID);
-    ensureCurrent();
-    this.writeCharacteristic = await service.getCharacteristic(WRITE_UUID);
-    ensureCurrent();
-    this.log("info", "Write characteristic resolved; starting notifications.");
-    const notificationCharacteristic =
-      await service.getCharacteristic(NOTIFY_UUID);
-    ensureCurrent();
-    await notificationCharacteristic.startNotifications();
-    ensureCurrent();
+    this.log("info", `GATT connection opened (connected=${device.gatt.connected}); resolving service ${SERVICE_UUID}.`, "bluetooth.gatt");
+    try {
+      const announcedServices = await server.getPrimaryServices();
+      ensureCurrent();
+      this.log("info", `Peripheral announced ${announcedServices.length} primary service${announcedServices.length === 1 ? "" : "s"}: ${announcedServices.map((item) => item.uuid).join(", ") || "none"}.`, "bluetooth.gatt");
+    } catch (error) {
+      this.log("warn", `Could not enumerate announced primary services: ${error.stack || error.message}`, "bluetooth.gatt");
+    }
+    let service;
+    try {
+      service = await server.getPrimaryService(SERVICE_UUID);
+      ensureCurrent();
+      this.log("info", `GATT service resolved: ${service.uuid}.`, "bluetooth.gatt");
+    } catch (error) {
+      this.log("error", `GATT service resolution failed for ${SERVICE_UUID}: ${error.stack || error.message}`, "bluetooth.gatt");
+      throw error;
+    }
+    try {
+      this.writeCharacteristic = await service.getCharacteristic(WRITE_UUID);
+      ensureCurrent();
+      this.log("info", `Write characteristic resolved: ${this.writeCharacteristic.uuid} (properties=${describeProperties(this.writeCharacteristic.properties)}).`, "bluetooth.gatt");
+    } catch (error) {
+      this.log("error", `Write characteristic resolution failed for ${WRITE_UUID}: ${error.stack || error.message}`, "bluetooth.gatt");
+      throw error;
+    }
+    this.log("info", "Write characteristic resolved; starting notifications.", "bluetooth.gatt");
+    let notificationCharacteristic;
+    try {
+      notificationCharacteristic = await service.getCharacteristic(NOTIFY_UUID);
+      ensureCurrent();
+      this.log("info", `Notify characteristic resolved: ${notificationCharacteristic.uuid} (properties=${describeProperties(notificationCharacteristic.properties)}).`, "bluetooth.gatt");
+      await notificationCharacteristic.startNotifications();
+      ensureCurrent();
+      this.log("info", "Notify characteristic subscriptions enabled.", "bluetooth.gatt");
+    } catch (error) {
+      this.log("error", `Notify characteristic setup failed for ${NOTIFY_UUID}: ${error.stack || error.message}`, "bluetooth.gatt");
+      throw error;
+    }
     notificationCharacteristic.addEventListener(
       "characteristicvaluechanged",
       (event) =>
@@ -187,16 +218,16 @@ export class BlePrinter {
   }
 
   handleNotification(data) {
-    this.log("debug", `RX notification (${data.length} bytes): ${formatHex(data)}`);
+    this.log("debug", `RX notification (${data.length} bytes): ${formatHex(data)}`, "bluetooth.protocol");
     if (equalBytes(data, flowControl.pause)) {
       this.paused = true;
-      this.log("info", "RX flow-control pause; waiting for printer buffer to resume.");
+      this.log("info", "RX flow-control pause; waiting for printer buffer to resume.", "bluetooth.protocol");
       this.update({ message: "Printer buffer full; waiting…", buffer: "Full" });
       return;
     }
     if (equalBytes(data, flowControl.resume)) {
       this.paused = false;
-      this.log("info", "RX flow-control resume; continuing transfer.");
+      this.log("info", "RX flow-control resume; continuing transfer.", "bluetooth.protocol");
       this.update({ message: "Ready", buffer: "Ready" });
       return;
     }
@@ -210,7 +241,7 @@ export class BlePrinter {
         busy: Boolean(value & 0x80),
         message: value ? "Printer needs attention" : "Ready",
       };
-      this.log("info", `RX status response: flags=0x${value.toString(16).padStart(2, "0")} decoded=${JSON.stringify(decoded)}`);
+      this.log("info", `RX status response: flags=0x${value.toString(16).padStart(2, "0")} decoded=${JSON.stringify(decoded)}`, "bluetooth.protocol");
       this.update(decoded);
     }
   }
@@ -225,7 +256,7 @@ export class BlePrinter {
       averageBytesPerSecond: (stats.transferredBytes / elapsedMs) * 1000,
     };
     this.onTransferStats(report);
-    this.log("debug", `Transfer stats: ${report.transferredBytes}/${report.totalBytes} bytes, ${report.transferredPackets}/${report.totalPackets} chunks, average ${Math.round(report.averageBytesPerSecond)} B/s.`);
+    this.log("debug", `Transfer stats: ${report.transferredBytes}/${report.totalBytes} bytes, ${report.transferredPackets}/${report.totalPackets} chunks, average ${Math.round(report.averageBytesPerSecond)} B/s.`, "bluetooth.transport");
   }
 
   async send(data, chunkDelay = 20, reportProgress = false, transferStats = null) {
@@ -233,16 +264,16 @@ export class BlePrinter {
       throw new Error("Connect the printer first.");
     const delayMs = Math.max(0, Math.min(500, Number(chunkDelay) || 0));
     const totalChunks = Math.ceil(data.length / 245);
-    this.log("debug", `TX command frames: ${describeFrames(data)}`);
-    this.log("debug", `TX ${data.length} bytes in ${totalChunks} BLE chunk${totalChunks === 1 ? "" : "s"} (delay ${delayMs}ms).`);
+    this.log("debug", `TX command frames: ${describeFrames(data)}`, "bluetooth.protocol");
+    this.log("debug", `TX ${data.length} bytes in ${totalChunks} BLE chunk${totalChunks === 1 ? "" : "s"} (delay ${delayMs}ms).`, "bluetooth.transport");
     for (let offset = 0; offset < data.length; offset += 245) {
       while (this.paused) await delay(100);
       const chunk = data.slice(offset, offset + 245);
-      this.log("debug", `TX chunk ${Math.floor(offset / 245) + 1}/${totalChunks} (${chunk.length} bytes): ${formatHex(chunk)}`);
+      this.log("debug", `TX chunk ${Math.floor(offset / 245) + 1}/${totalChunks} (${chunk.length} bytes): ${formatHex(chunk)}`, "bluetooth.transport");
       try {
         await this.writeCharacteristic.writeValueWithoutResponse(chunk);
       } catch (error) {
-        this.log("error", `BLE write failed at byte ${offset}/${data.length}: ${error.stack || error.message}`);
+        this.log("error", `BLE write failed at byte ${offset}/${data.length}: ${error.stack || error.message}`, "bluetooth.transport");
         throw error;
       }
       if (transferStats) {
@@ -256,7 +287,7 @@ export class BlePrinter {
           Math.min(100, Math.round(((offset + chunk.length) / data.length) * 100)),
         );
     }
-    this.log("debug", `BLE send complete (${data.length} bytes).`);
+    this.log("debug", `BLE send complete (${data.length} bytes).`, "bluetooth.transport");
   }
 
   async requestStatus() {

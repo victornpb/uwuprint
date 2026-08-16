@@ -286,7 +286,7 @@ function updatePrinterStatus(next) {
     previous.temperature !== next.temperature ||
     previous.battery !== next.battery
   ) {
-    logActivity('info', 'printer', `Printer status updated: ${JSON.stringify({
+    logActivity('info', 'app.ui', `Printer status updated: ${JSON.stringify({
       connected: next.connected,
       message: next.message,
       deviceName: next.deviceName,
@@ -509,6 +509,7 @@ function decodePixels(base64) {
   return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
 }
 async function openPicker() {
+  logActivity("info", "app.ui", `Opening printer picker (connected=${printerStatus.value.connected}).`);
   if (printerStatus.value.connected) {
     clearDeviceConnections();
     showPicker.value = true;
@@ -524,7 +525,7 @@ async function openPicker() {
     resumeAfterConnect = null;
     await resume?.();
   } catch (error) {
-    logActivity("error", "printer", `Printer connection failed: ${error.stack || error.message}`);
+    logActivity("error", "app.ui", `Printer connection failed: ${error.stack || error.message}`);
     resumeAfterConnect = null;
     clearDeviceConnections();
     printerStatus.value = {
@@ -535,6 +536,7 @@ async function openPicker() {
   }
 }
 async function selectDevice(device) {
+  logActivity("info", "app.ui", `Selecting Bluetooth device: ${device.name} (${device.id}).`);
   device.connecting = true;
   printerStatus.value = {
     ...printerStatus.value,
@@ -577,7 +579,7 @@ async function connectThen(action) {
     connecting.value = false;
     await resume?.();
   } catch (error) {
-    logActivity("error", "printer", `Remembered-printer connection failed: ${error.stack || error.message}`);
+    logActivity("error", "app.ui", `Remembered-printer connection failed: ${error.stack || error.message}`);
     // A cancellation is handled by closePicker. Do not create a second BLE request.
     if (resumeAfterConnect && !showPicker.value)
       printerStatus.value = {
@@ -646,7 +648,7 @@ async function printSelected() {
     scheduleDisconnect();
     return true;
   } catch (error) {
-    logActivity("error", "printer", `Print failed: ${error.stack || error.message}`);
+    logActivity("error", "app.ui", `Print failed: ${error.stack || error.message}`);
     printerStatus.value = { ...printerStatus.value, message: error.message };
     return false;
   } finally {
@@ -699,7 +701,7 @@ async function refreshStatus() {
   try {
     await printer.requestStatus();
   } catch (error) {
-    logActivity("error", "printer", `Status request failed: ${error.stack || error.message}`);
+    logActivity("error", "app.ui", `Status request failed: ${error.stack || error.message}`);
     printerStatus.value = { ...printerStatus.value, message: error.message };
   }
 }
@@ -716,7 +718,7 @@ async function feedPaper() {
     await printer.feedPaper(preferences.value.printer.manualFeed);
     motionStatus("Paper fed");
   } catch (error) {
-    logActivity("error", "printer", `Paper feed failed: ${error.stack || error.message}`);
+    logActivity("error", "app.ui", `Paper feed failed: ${error.stack || error.message}`);
     printerStatus.value = { ...printerStatus.value, message: error.message };
   }
 }
@@ -726,7 +728,7 @@ async function retractPaper() {
     await printer.retractPaper(preferences.value.printer.manualFeed);
     motionStatus("Paper retracted");
   } catch (error) {
-    logActivity("error", "printer", `Paper retract failed: ${error.stack || error.message}`);
+    logActivity("error", "app.ui", `Paper retract failed: ${error.stack || error.message}`);
     printerStatus.value = { ...printerStatus.value, message: error.message };
   }
 }
