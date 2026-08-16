@@ -88,9 +88,10 @@ Useful commands:
 ```sh
 AGENT=1 npm run test        # Check entrypoints and build the renderer
 AGENT=1 npm start           # Build and launch the production app
-AGENT=1 npm run make:mac    # Package macOS as DMG and ZIP
+AGENT=1 npm run make:mac    # Package macOS as DMG
 AGENT=1 npm run make:win    # Package Windows as installer and portable EXE
 AGENT=1 npm run make:linux  # Package Linux as AppImage and DEB
+AGENT=1 npm run make        # Package macOS, Windows, and Linux
 ```
 
 ## License

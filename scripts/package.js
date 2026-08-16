@@ -19,8 +19,8 @@ const targets = {
 	},
 };
 
-if (target !== 'cross' && !targets[target]) {
-	throw new Error('Usage: node scripts/package.js <mac|win|linux|cross>');
+if (target !== 'all' && !targets[target]) {
+	throw new Error('Usage: node scripts/package.js <mac|win|linux|all>');
 }
 
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
@@ -66,11 +66,27 @@ function installTargetDependencies(buildTarget) {
 	}
 }
 
+function removeUpdateArtifacts() {
+	const releaseDirectory = path.resolve('release');
+	if (!fs.existsSync(releaseDirectory)) {
+		return;
+	}
+
+	for (const file of fs.readdirSync(releaseDirectory)) {
+		if (!file.endsWith('.blockmap') && !/^latest.*\.yml$/.test(file)) {
+			continue;
+		}
+		fs.rmSync(path.join(releaseDirectory, file), { force: true });
+	}
+}
+
 run(npmCommand, ['run', 'build']);
 
-const buildTargets = target === 'cross' ? ['linux', 'win'] : [target];
+const buildTargets = target === 'all' ? ['mac', 'linux', 'win'] : [target];
 for (const buildTargetName of buildTargets) {
 	const buildTarget = targets[buildTargetName];
 	installTargetDependencies(buildTarget);
 	run(builderCommand, [...buildTarget.builder, '--publish=never']);
 }
+
+removeUpdateArtifacts();

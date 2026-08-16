@@ -3,7 +3,7 @@
   "prodName": "uwuPrint",
   "prodTagline": "Thermal printer driver",
   "productName": "uwuPrint",
-  "version": "0.1.78",
+  "version": "0.1.79",
   "description": "Cross-platform desktop application for Bluetooth thermal cat printers.",
   "main": "src/main/index.js",
   "scripts": {
@@ -15,7 +15,7 @@
     "make:mac": "node scripts/package.js mac",
     "make:win": "node scripts/package.js win",
     "make:linux": "node scripts/package.js linux",
-    "make:cross": "node scripts/package.js cross"
+    "make": "node scripts/package.js all"
   },
   "author": {
     "name": "Victor",
@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.5",
-    "electron": "^40.6.1",
+    "electron": "^43.4.0",
     "electron-builder": "^26.15.3",
     "vite": "^7.3.1"
   },
@@ -60,9 +60,12 @@
       "icon": "src/assets/app-icon.png",
       "category": "public.app-category.graphics-design",
       "target": [
-        "dmg",
-        "zip"
+        "dmg"
       ]
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
+      "writeUpdateInfo": false
     },
     "win": {
       "icon": "src/assets/app-icon.png",
@@ -71,12 +74,24 @@
         "portable"
       ]
     },
+    "nsis": {
+      "artifactName": "${productName}-${version}-windows-installer.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-windows-portable.${ext}"
+    },
     "linux": {
       "category": "Graphics",
       "target": [
         "AppImage",
         "deb"
       ]
+    },
+    "appImage": {
+      "artifactName": "${productName}-${version}-linux.${ext}"
+    },
+    "deb": {
+      "artifactName": "${name}_${version}-linux.${ext}"
     },
     "asarUnpack": [
       "node_modules/sharp/**/*"
