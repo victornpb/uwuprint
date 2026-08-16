@@ -1,11 +1,27 @@
 import { createApp } from 'vue';
 import App from './App.vue';
 import DitherComparisonWindow from './DitherComparisonWindow.vue';
+import LogsWindow from './LogsWindow.vue';
 import './style.css';
 
-const RootComponent = new URLSearchParams(window.location.search).has('dither-comparison')
+const params = new URLSearchParams(window.location.search);
+const isLogsWindow = params.has('logs');
+const RootComponent = isLogsWindow
+	? LogsWindow
+	: params.has('dither-comparison')
 	? DitherComparisonWindow
 	: App;
+
+if (!isLogsWindow) {
+	for (const level of ['log', 'info', 'debug', 'warn', 'error']) {
+		const original = console[level];
+		console[level] = (...args) => {
+			const message = args.map((value) => value instanceof Error ? value.stack || value.message : typeof value === 'string' ? value : JSON.stringify(value)).join(' ');
+			window.desktop.writeLog(level, 'renderer', message);
+			original(...args);
+		};
+	}
+}
 const app = createApp(RootComponent);
 
 function showRendererError(error) {

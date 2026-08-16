@@ -75,6 +75,12 @@ const printerStatus = ref({
   busy: false,
   buffer: "Ready",
 });
+const logOptions = ref({ bluetooth: false });
+
+function logActivity(level, scope, message) {
+  window.desktop.writeLog?.(level, scope, message);
+}
+
 const printer = new BlePrinter(
   updatePrinterStatus,
   (progress) => {
@@ -83,8 +89,10 @@ const printer = new BlePrinter(
   (stats) => {
     transferStats.value = stats;
   },
+  logActivity,
 );
 let disconnectTimer;
+
 const selected = computed(() =>
   images.value.find((image) => image.id === selectedId.value),
 );
@@ -179,6 +187,9 @@ async function checkForUpdates(options) {
 function openLatestRelease(url) {
   return window.desktop.openLatestRelease(url);
 }
+function openLogs() {
+  return window.desktop.openLogs();
+}
 function isHoveredMargin(target, enabled) {
   return isMarginPreviewTab() && hoveredMarginTarget.value === target && enabled;
 }
@@ -267,6 +278,26 @@ function maybeNotify(event, title, body) {
 function updatePrinterStatus(next) {
   const previous = printerStatus.value;
   printerStatus.value = next;
+  if (
+    previous.message !== next.message ||
+    previous.connected !== next.connected ||
+    previous.paper !== next.paper ||
+    previous.lid !== next.lid ||
+    previous.temperature !== next.temperature ||
+    previous.battery !== next.battery
+  ) {
+    logActivity('info', 'printer', `Printer status updated: ${JSON.stringify({
+      connected: next.connected,
+      message: next.message,
+      deviceName: next.deviceName,
+      paper: next.paper,
+      lid: next.lid,
+      temperature: next.temperature,
+      battery: next.battery,
+      busy: next.busy,
+      buffer: next.buffer,
+    })}`);
+  }
   if (next.connected) clearDeviceConnections();
   if (next.battery === "Low" && previous.battery !== "Low")
     maybeNotify(
@@ -493,6 +524,7 @@ async function openPicker() {
     resumeAfterConnect = null;
     await resume?.();
   } catch (error) {
+    logActivity("error", "printer", `Printer connection failed: ${error.stack || error.message}`);
     resumeAfterConnect = null;
     clearDeviceConnections();
     printerStatus.value = {
@@ -541,6 +573,7 @@ async function connectThen(action) {
     connecting.value = false;
     await resume?.();
   } catch (error) {
+    logActivity("error", "printer", `Remembered-printer connection failed: ${error.stack || error.message}`);
     // A cancellation is handled by closePicker. Do not create a second BLE request.
     if (resumeAfterConnect && !showPicker.value)
       printerStatus.value = {
@@ -609,6 +642,7 @@ async function printSelected() {
     scheduleDisconnect();
     return true;
   } catch (error) {
+    logActivity("error", "printer", `Print failed: ${error.stack || error.message}`);
     printerStatus.value = { ...printerStatus.value, message: error.message };
     return false;
   } finally {
@@ -661,6 +695,7 @@ async function refreshStatus() {
   try {
     await printer.requestStatus();
   } catch (error) {
+    logActivity("error", "printer", `Status request failed: ${error.stack || error.message}`);
     printerStatus.value = { ...printerStatus.value, message: error.message };
   }
 }
@@ -677,6 +712,7 @@ async function feedPaper() {
     await printer.feedPaper(preferences.value.printer.manualFeed);
     motionStatus("Paper fed");
   } catch (error) {
+    logActivity("error", "printer", `Paper feed failed: ${error.stack || error.message}`);
     printerStatus.value = { ...printerStatus.value, message: error.message };
   }
 }
@@ -686,6 +722,7 @@ async function retractPaper() {
     await printer.retractPaper(preferences.value.printer.manualFeed);
     motionStatus("Paper retracted");
   } catch (error) {
+    logActivity("error", "printer", `Paper retract failed: ${error.stack || error.message}`);
     printerStatus.value = { ...printerStatus.value, message: error.message };
   }
 }
@@ -768,6 +805,15 @@ watch(
   },
 );
 onMounted(() => {
+  logActivity('info', 'app', 'Application ready');
+  window.desktop.getLogOptions().then((options) => {
+    logOptions.value = options;
+    printer.setLoggingOptions(options);
+  });
+  window.desktop.onLogOptionsChanged((options) => {
+    logOptions.value = options;
+    printer.setLoggingOptions(options);
+  });
   window.desktop.onDitherComparisonApply((dither) => {
     if (selected.value) selected.value.options.dither = dither;
   });
@@ -1076,7 +1122,7 @@ onBeforeUnmount(() => {
     </section>
     <StatusStrip :status="printerStatus" :transfer-stats="transferStats"
       :show-transfer-stats="preferences.advanced.showTransferStats" :update-status="updateStatus"
-      @refresh="refreshStatus" @open-latest-release="openLatestRelease" />
+      @refresh="refreshStatus" @open-latest-release="openLatestRelease" @open-logs="openLogs" />
     <PrintProgressDialog
       v-if="printing"
       :image-name="selected?.name || 'Image'"
@@ -1186,6 +1232,12 @@ onBeforeUnmount(() => {
   padding: 4px 8px;
   font-size: 11px;
   white-space: nowrap;
+}
+
+.status-log-button {
+  border: 0;
+  text-align: left;
+  cursor: pointer;
 }
 
 .preferences-modal {

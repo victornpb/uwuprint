@@ -7,7 +7,7 @@ const props = defineProps({
 	showTransferStats: { type: Boolean, default: false },
 	updateStatus: { type: Object, default: null },
 });
-const emit = defineEmits(['refresh', 'open-latest-release']);
+const emit = defineEmits(['refresh', 'open-latest-release', 'open-logs']);
 const callToActions = [
 	{ label: 'Made by Victor', url: 'https://github.com/victornpb' },
 	{ label: 'Support project', url: 'https://www.buymeacoffee.com/vitim' },
@@ -65,7 +65,7 @@ function statusClass(field, value, status) {
 		<span :class="statusClass('lid', status.lid, status)"><b>Lid</b>{{ status.lid }}</span>
 		<span :class="statusClass('temperature', status.temperature, status)"><b>Temperature</b>{{ status.temperature }}</span>
 		<span :class="statusClass('battery', status.battery, status)"><b>Battery</b>{{ status.battery }}</span>
-		<span class="status-message" :class="statusClass('connection', status.message, status)"><b>Status</b>{{ status.message }}</span>
+		<button class="status-message status-log-button clear-link" :class="statusClass('connection', status.message, status)" aria-label="Open application logs" title="Open application logs" @click="emit('open-logs')"><b>Status</b>{{ status.message }}</button>
 		<button class="status-refresh clear-link" :disabled="!status.connected" aria-label="Refresh printer status" title="Refresh printer status" @click="emit('refresh')">
 			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-3.8L3 9m0 0V4m0 5h5M4 13a8 8 0 0 0 14.9 3.8L21 15m0 0v5m0-5h-5" /></svg>
 		</button>

@@ -987,10 +987,36 @@ button.clear-link:hover {
 }
 
 .status-strip .status-message {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--sys-text-primary);
+  font-size: 11px;
   max-width: 320px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.status-strip button.status-message:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+
+.status-strip button.status-message.status-ok {
+  color: var(--sys-status-ok);
+}
+
+.status-strip button.status-message.status-warning {
+  color: var(--sys-status-warning);
+}
+
+.status-strip button.status-message.status-danger {
+  color: var(--sys-status-danger);
 }
 
 .status-strip .transfer-stats {

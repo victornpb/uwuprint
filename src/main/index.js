@@ -39,6 +39,7 @@ app.setAboutPanelOptions({
 
 let mainWindow;
 let ditherComparisonWindow;
+let logsWindow;
 let ditherComparisonData;
 let ditherComparisonParent;
 let pendingOpenImages = collectImagePaths(process.argv);
@@ -50,7 +51,90 @@ let rememberedSelectionTimer;
 let printerDiscoveryActive = false;
 let printerMenuState = { connected: false, printing: false, hasImages: false };
 let quitOnWindowClose = false;
+const logEntries = [];
+const MAX_BACKGROUND_LOG_ENTRIES = 500;
+let logOptions = { bluetooth: false };
 const shellIntegration = createShellIntegration(app);
+
+function formatLogValue(value) {
+  if (value instanceof Error) return value.stack || value.message;
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function appendLog(level, message, source = "main", scope = source) {
+  logEntries.push({
+    timestamp: new Date().toLocaleTimeString(),
+    level,
+    source,
+    scope,
+    message: String(message),
+  });
+  if ((!logsWindow || logsWindow.isDestroyed()) && logEntries.length > MAX_BACKGROUND_LOG_ENTRIES)
+    logEntries.splice(0, logEntries.length - MAX_BACKGROUND_LOG_ENTRIES);
+  if (logsWindow && !logsWindow.isDestroyed())
+    logsWindow.webContents.send("logs-updated", logEntries);
+}
+
+const nativeConsoleError = console.error;
+for (const level of ["log", "info", "debug", "warn", "error"]) {
+  const original = console[level];
+  console[level] = (...args) => {
+    appendLog(level, args.map(formatLogValue).join(" "), "main", "main");
+    original(...args);
+  };
+}
+
+function createLogsWindow() {
+  if (logsWindow && !logsWindow.isDestroyed()) {
+    logsWindow.show();
+    logsWindow.focus();
+    return;
+  }
+  appendLog("info", "Logs window opened");
+  logsWindow = new BrowserWindow({
+    width: 860,
+    height: 540,
+    minWidth: 600,
+    minHeight: 300,
+    title: `${APP_NAME} Logs`,
+    parent: mainWindow,
+    icon: APP_ICON_PATH,
+    webPreferences: {
+      preload: path.join(__dirname, "..", "preload", "index.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+  if (devServerUrl) {
+    const target = new URL(devServerUrl);
+    target.searchParams.set("logs", "1");
+    logsWindow.loadURL(target.toString());
+  } else {
+    logsWindow.loadFile(path.join(__dirname, "..", "..", "dist", "index.html"), {
+      query: { logs: "1" },
+    });
+  }
+  logsWindow.on("closed", () => {
+    logsWindow = null;
+    if (logEntries.length > MAX_BACKGROUND_LOG_ENTRIES)
+      logEntries.splice(0, logEntries.length - MAX_BACKGROUND_LOG_ENTRIES);
+  });
+}
+
+process.on("uncaughtExceptionMonitor", (error, origin) => {
+  appendLog("error", `${origin}: ${formatLogValue(error)}`, "main", "process");
+});
+
+process.on("unhandledRejection", (reason) => {
+  appendLog("error", `Unhandled promise rejection: ${formatLogValue(reason)}`, "main", "process");
+  nativeConsoleError("Unhandled promise rejection:", reason);
+});
 function collectImagePaths(values) {
   return values.filter(
     (value) =>
@@ -402,6 +486,7 @@ function createWindow() {
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
   if (devServerUrl) mainWindow.loadURL(devServerUrl);
   else mainWindow.loadFile(path.join(__dirname, "..", "..", "dist", "index.html"));
+  appendLog("info", "Main window created");
   mainWindow.webContents.once("did-finish-load", () => {
     rendererReady = true;
     flushOpenImages();
@@ -717,6 +802,23 @@ ipcMain.handle("open-latest-release", (_event, value) => {
     // Fall back to the releases page when no release URL was supplied.
   }
   return shell.openExternal(releaseUrl);
+});
+ipcMain.handle("open-logs", () => createLogsWindow());
+ipcMain.handle("get-logs", () => logEntries);
+ipcMain.handle("get-log-options", () => logOptions);
+ipcMain.handle("set-log-options", (_event, options) => {
+  logOptions = { ...logOptions, bluetooth: options?.bluetooth === true };
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed() && !window.webContents.isDestroyed())
+      window.webContents.send("log-options-changed", logOptions);
+  }
+  appendLog("info", `Bluetooth communication logging ${logOptions.bluetooth ? "enabled" : "disabled"}.`, "main", "logging");
+  return logOptions;
+});
+ipcMain.on("append-log", (_event, level, scope, message) => {
+  if (!["log", "info", "debug", "warn", "error"].includes(level)) return;
+  if (typeof scope !== "string" || typeof message !== "string") return;
+  appendLog(level, message, "renderer", scope);
 });
 ipcMain.handle("open-external", (_event, value) => {
   try {
