@@ -79,3 +79,25 @@ jobs:
         run: |
           find release-assets -type f -print0 \
             | xargs -0 -n 1 gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Append download heading to release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+        run: |
+          heading='### 👇🏻 Download files'
+          body="$(gh release view "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json body \
+            --jq .body)"
+
+          if ! grep -Fq "$heading" <<< "$body"; then
+            {
+              printf '%s\n\n' "$body"
+              printf '%s\n' "$heading"
+            } > release-notes.md
+
+            gh release edit "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --notes-file release-notes.md
+          fi
