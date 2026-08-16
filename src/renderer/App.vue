@@ -547,6 +547,10 @@ async function closePicker() {
     showPicker.value = false;
     return;
   }
+  // Selection cancellation does not stop a GATT connection that has already
+  // been selected, so invalidate and disconnect that attempt first.
+  printer.disconnect();
+  connecting.value = false;
   await window.desktop.cancelBluetoothSelection();
   clearDeviceConnections();
   resumeAfterConnect = null;

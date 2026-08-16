@@ -50,6 +50,11 @@ const equalBytes = (first, second) =>
   first.every((value, index) => value === second[index]);
 const delay = (milliseconds) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
+const connectionCancelledError = () => {
+  const error = new Error("Printer connection was cancelled.");
+  error.name = "ConnectionCancelledError";
+  return error;
+};
 
 export class BlePrinter {
   constructor(onStatus, onProgress = () => { }, onTransferStats = () => { }, onLog = () => { }) {
@@ -62,6 +67,7 @@ export class BlePrinter {
     this.writeCharacteristic = null;
     this.paused = false;
     this.manualDisconnect = false;
+    this.connectionAttempt = 0;
     this.state = {
       connected: false,
       message: "Disconnected",
@@ -85,6 +91,7 @@ export class BlePrinter {
   }
 
   async connect() {
+    const connectionAttempt = ++this.connectionAttempt;
     this.manualDisconnect = false;
     this.log("info", "Starting printer discovery.");
     if (typeof navigator.bluetooth.getAvailability === "function") {
@@ -99,16 +106,21 @@ export class BlePrinter {
         throw error;
       }
     }
+    if (connectionAttempt !== this.connectionAttempt)
+      throw connectionCancelledError();
     this.update({ connected: false, message: "Searching for nearby printers…" });
     this.device = await navigator.bluetooth.requestDevice({
       acceptAllDevices: true,
       optionalServices: [SERVICE_UUID],
     });
+    if (connectionAttempt !== this.connectionAttempt)
+      throw connectionCancelledError();
     this.log("info", `Printer selected: ${this.device.name || "unnamed device"}.`);
-    this.device.addEventListener("gattserverdisconnected", () =>
+    const device = this.device;
+    device.addEventListener("gattserverdisconnected", () =>
       this.handleDisconnect(),
     );
-    await this.connectDevice();
+    await this.connectDevice(connectionAttempt, device);
   }
 
   async connectRemembered(deviceNames, timeoutSeconds) {
@@ -118,17 +130,26 @@ export class BlePrinter {
     await this.connect();
   }
 
-  async connectDevice() {
+  async connectDevice(connectionAttempt, device) {
+    const ensureCurrent = () => {
+      if (connectionAttempt !== this.connectionAttempt || this.device !== device)
+        throw connectionCancelledError();
+    };
     this.update({ connected: false, message: "Connecting to printer…" });
     this.log("info", "Opening GATT connection.");
-    const server = await this.device.gatt.connect();
+    const server = await device.gatt.connect();
+    ensureCurrent();
     this.log("info", "GATT connection opened; resolving printer service.");
     const service = await server.getPrimaryService(SERVICE_UUID);
+    ensureCurrent();
     this.writeCharacteristic = await service.getCharacteristic(WRITE_UUID);
+    ensureCurrent();
     this.log("info", "Write characteristic resolved; starting notifications.");
     const notificationCharacteristic =
       await service.getCharacteristic(NOTIFY_UUID);
+    ensureCurrent();
     await notificationCharacteristic.startNotifications();
+    ensureCurrent();
     notificationCharacteristic.addEventListener(
       "characteristicvaluechanged",
       (event) =>
@@ -142,8 +163,8 @@ export class BlePrinter {
     );
     this.update({
       connected: true,
-      deviceName: this.device.name || "printer",
-      message: `Connected to ${this.device.name || "printer"}`,
+      deviceName: device.name || "printer",
+      message: `Connected to ${device.name || "printer"}`,
     });
     this.log("info", "Printer connected; requesting initial status.");
     await this.send(buildStatusRequest());
@@ -303,6 +324,7 @@ export class BlePrinter {
   disconnect() {
     this.log("info", "Disconnect requested.");
     this.manualDisconnect = true;
+    this.connectionAttempt += 1;
     this.paused = false;
     this.writeCharacteristic = null;
     const device = this.device;
