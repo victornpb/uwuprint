@@ -3,7 +3,7 @@
   "prodName": "uwuPrint",
   "prodTagline": "Thermal printer driver",
   "productName": "uwuPrint",
-  "version": "0.1.77",
+  "version": "0.1.78",
   "description": "Cross-platform desktop application for Bluetooth thermal cat printers.",
   "main": "src/main/index.js",
   "scripts": {
@@ -56,6 +56,7 @@
       "package.json"
     ],
     "mac": {
+      "identity": "-",
       "icon": "src/assets/app-icon.png",
       "category": "public.app-category.graphics-design",
       "target": [
