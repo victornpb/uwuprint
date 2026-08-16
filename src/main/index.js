@@ -28,6 +28,7 @@ const APP_VERSION = packageJson.version;
 const RELEASES_API_URL = "https://api.github.com/repos/victornpb/uwuprint/releases?per_page=20";
 const RELEASES_URL = "https://github.com/victornpb/uwuprint/releases/latest";
 const APP_ICON_PATH = path.join(__dirname, "..", "assets", "app-icon.png");
+const EXAMPLE_IMAGE_PATH = path.join(__dirname, "..", "assets", "example.png");
 app.setName(APP_NAME);
 app.setAboutPanelOptions({
   applicationName: APP_NAME,
@@ -513,7 +514,7 @@ ipcMain.handle("load-example-image", () =>
     APP_SLUG_NAME,
     "example",
     ".png",
-    fs.readFileSync(APP_ICON_PATH),
+    fs.readFileSync(EXAMPLE_IMAGE_PATH),
   ),
 );
 
