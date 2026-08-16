@@ -7,7 +7,7 @@ A desktop application for 1-click printing to Bluetooth thermal printers. Availa
 [Download for Linux](https://github.com/victornpb/uwuprint/releases)
 
 <p align="center">
-  <img src="src/docs/main.png" alt="uwuPrint image queue, thermal print preview, and image controls" width="920">
+  <img src="docs/main.png" alt="uwuPrint image queue, thermal print preview, and image controls" width="920">
 </p>
 
 ## Features
@@ -19,11 +19,11 @@ A desktop application for 1-click printing to Bluetooth thermal printers. Availa
 - **Supported Formats**: PNG, JPEG, WebP, GIF, TIFF, and BMP. Support for drag-and-drop and pasting from the clipboard.
 
 <p align="center">
-  <img src="src/docs/finder-and-explorer-integration.png" alt="The uwuPrint print action in the Finder Quick Actions menu" width="920">
+  <img src="docs/finder-and-explorer-integration.png" alt="The uwuPrint print action in the Finder Quick Actions menu" width="920">
 </p>
 
 <p align="center">
-  <img src="src/docs/dither-algorithms.png" alt="Comparison view of multiple dithering algorithms supported in uwuPrint" width="920">
+  <img src="docs/dither-algorithms.png" alt="Comparison view of multiple dithering algorithms supported in uwuPrint" width="920">
 </p>
 
 ## Settings
@@ -34,11 +34,11 @@ Configure application behavior and printer defaults in the Preferences:
 - Between-page spacing and print intensity.
 
 <p align="center">
-  <img src="src/docs/print-preferences.png" alt="uwuPrint print preferences" width="760">
+  <img src="docs/print-preferences.png" alt="uwuPrint print preferences" width="760">
 </p>
 
 <p align="center">
-  <img src="src/docs/dark-and-light-theme.png" alt="uwuPrint general preferences with theme and integration settings" width="760">
+  <img src="docs/dark-and-light-theme.png" alt="uwuPrint general preferences with theme and integration settings" width="760">
 </p>
 
 ## Download
@@ -71,7 +71,7 @@ uwuPrint supports various Bluetooth thermal "cat printers". It discovers nearby 
 > **Did you test with another model?** Please [open an issue](https://github.com/victornpb/uwuprint/issues) to let us know if it works, so we can update this list!
 
 <p align="center">
-  <img src="src/docs/real-photo.jpg" alt="A Bluetooth thermal printer printing an image with uwuPrint" width="720">
+  <img src="docs/real-photo.jpg" alt="A Bluetooth thermal printer printing an image with uwuPrint" width="720">
 </p>
 
 ## Build from source

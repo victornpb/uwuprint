@@ -8,6 +8,10 @@
 *.pdf
 *.jpg
 
+# README documentation images
+!docs/*.png
+!docs/*.jpg
+
 release/*
 output/
 .DS_Store
