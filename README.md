@@ -1,49 +1,57 @@
-# uwuPrint
-
-A desktop application for 1-click printing to Bluetooth thermal printers. Available for macOS, Windows, and Linux.
-
-[Download for macOS](https://github.com/victornpb/uwuprint/releases) ·
-[Download for Windows](https://github.com/victornpb/uwuprint/releases) ·
-[Download for Linux](https://github.com/victornpb/uwuprint/releases)
+<div align="center">
+  <img src="src/assets/app-icon.png" alt="uwuPrint icon" width="96">
+  <h1>uwuPrint</h1>
+  <p>Print images in one click to Bluetooth thermal cat printers.</p>
+  <p>
+    <a href="https://github.com/victornpb/uwuprint/releases">Download for macOS</a> ·
+    <a href="https://github.com/victornpb/uwuprint/releases">Download for Windows</a> ·
+    <a href="https://github.com/victornpb/uwuprint/releases">Download for Linux</a>
+  </p>
+</div>
 
 <p align="center">
   <img src="docs/main.png" alt="uwuPrint image queue, thermal print preview, and image controls" width="920">
 </p>
 
-## Features
+uwuPrint is a cross-platform desktop application for Bluetooth thermal printers. It turns images into the printer's monochromatic format, lets you adjust the result, and sends it to the printer with a single action.
 
-- **1-Click Printing**: Send images directly to the app using macOS Finder Quick Actions or Windows Explorer context menus for instant printing.
+
+### File Explorer and Finder Integration
+
+Send one or multiple images directly from macOS Finder Quick Actions or the Windows Explorer context menu.
+
+<p align="center">
+  <img src="docs/finder-and-explorer-integration.png" alt="The uwuPrint print action in the Finder Quick Actions menu" width="760">
+</p>
+
+### Dithering options
+
+Compare different algorithms side by side to choose the right look for sharp text, illustrations, or photos.
+
+<p align="center">
+  <img src="docs/dither-algorithms.png" alt="Comparison view of multiple dithering algorithms supported in uwuPrint" width="760">
+</p>
+
+### Other Features
+
 - **Print Preview**: Converts images to the printer's 384-pixel format to preview the exact output before printing.
 - **Image Adjustments**: Controls for contrast, brightness, and sharpening. Includes multiple dithering algorithms with a comparison view, image inversion, and level normalization.
-- **Queue Management**: Queue multiple images, set print margins, adjust spacing between prints, and specify the number of copies. Includes manual paper feed and retract controls.
+- **Queued Printing**: Queue multiple images, set print margins, adjust spacing between prints, and specify the number of copies. Includes manual paper feed and retract controls.
 - **Supported Formats**: PNG, JPEG, WebP, GIF, TIFF, and BMP. Support for drag-and-drop and pasting from the clipboard.
+- **Light / Dark mode**: Choose your prefered theme for the App UI.
+
+## Preferences
+
+Configure the application and printer defaults, print direction; feed margins and units; between-page spacing; and print intensity.
 
 <p align="center">
-  <img src="docs/finder-and-explorer-integration.png" alt="The uwuPrint print action in the Finder Quick Actions menu" width="920">
-</p>
-
-<p align="center">
-  <img src="docs/dither-algorithms.png" alt="Comparison view of multiple dithering algorithms supported in uwuPrint" width="920">
-</p>
-
-## Settings
-
-Configure application behavior and printer defaults in the Preferences:
-- Light, dark, or system-matched themes.
-- Print direction, feed margins, and margin units.
-- Between-page spacing and print intensity.
-
-<p align="center">
-  <img src="docs/print-preferences.png" alt="uwuPrint print preferences" width="760">
-</p>
-
-<p align="center">
-  <img src="docs/dark-and-light-theme.png" alt="uwuPrint general preferences with theme and integration settings" width="760">
+  <img src="docs/print-preferences.png" alt="uwuPrint print preferences" width="48%">
+  <img src="docs/dark-and-light-theme.png" alt="uwuPrint general preferences with theme and integration settings" width="48%">
 </p>
 
 ## Download
 
-Downloads are available on the [GitHub Releases](https://github.com/victornpb/uwuprint/releases) page:
+Get the latest packages from [GitHub Releases](https://github.com/victornpb/uwuprint/releases).
 
 | Platform | Packages |
 | --- | --- |
@@ -53,11 +61,10 @@ Downloads are available on the [GitHub Releases](https://github.com/victornpb/uw
 
 ## Compatibility
 
-uwuPrint supports various Bluetooth thermal "cat printers". It discovers nearby compatible devices and displays connection status, paper presence, lid status, temperature, battery level, and transfer progress.
+uwuPrint discovers nearby compatible Bluetooth thermal printers and displays connection status, paper presence, lid status, temperature, battery level, and transfer progress.
 
 | Model | Status |
 | --- | --- |
-| `_ZZ00` | ❓ Untested |
 | `GB01` | ❓ Untested |
 | `GB02` | ❓ Untested |
 | `GB03` | ❓ Untested |
@@ -67,11 +74,12 @@ uwuPrint supports various Bluetooth thermal "cat printers". It discovers nearby 
 | `MX08` | ❓ Untested |
 | `MX09` | ❓ Untested |
 | `YT01` | ❓ Untested |
+| `_ZZ00` | ❓ Untested |
 
-> **Did you test with another model?** Please [open an issue](https://github.com/victornpb/uwuprint/issues) to let us know if it works, so we can update this list!
+Have another model? Please [report your results in the compatibility issue](https://github.com/victornpb/uwuprint/issues/1) so we can expand this list.
 
 <p align="center">
-  <img src="docs/real-photo.jpg" alt="A Bluetooth thermal printer printing an image with uwuPrint" width="720">
+  <img src="docs/real-photo.jpg" alt="A Bluetooth thermal printer printing an image with uwuPrint" width="560">
 </p>
 
 ## Build from source
