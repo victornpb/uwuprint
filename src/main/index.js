@@ -45,6 +45,7 @@ let ditherComparisonParent;
 let pendingOpenImages = collectImagePaths(process.argv);
 let rendererReady = false;
 let bluetoothSelection;
+let selectedBluetoothDeviceId;
 let rememberedSelectionNames = [];
 let rememberedSelectionTimeoutMs = 15_000;
 let rememberedSelectionTimer;
@@ -101,7 +102,6 @@ function createLogsWindow() {
     minWidth: 600,
     minHeight: 300,
     title: `${APP_NAME} Logs`,
-    parent: mainWindow,
     icon: APP_ICON_PATH,
     webPreferences: {
       preload: path.join(__dirname, "..", "preload", "index.js"),
@@ -450,14 +450,21 @@ function createWindow() {
       bluetoothSelection = callback;
       const uniqueDevices = new Map();
       for (const device of devices) {
-        const printerName = normalizedPrinterName(device.deviceName);
+        const displayName = typeof device.deviceName === "string"
+          ? device.deviceName.trim()
+          : "";
+        const printerName = normalizedPrinterName(displayName);
         const supported = SUPPORTED_PRINTER_NAMES.has(printerName);
         // macOS can advertise the same low-cost printer under rotating BLE IDs.
         // Collapse only supported models by name, preserving other nearby devices.
         const key = supported
           ? `printer:${printerName}`
           : `device:${device.deviceId}`;
-        uniqueDevices.set(key, device);
+        const previous = uniqueDevices.get(key);
+        // Chromium can emit the same device repeatedly while scanning, and a
+        // later event may omit the name that was present in an earlier event.
+        if (!previous || (typeof previous.deviceName !== "string" || !previous.deviceName.trim()) && displayName)
+          uniqueDevices.set(key, device);
       }
       const remembered = [...uniqueDevices.values()].find((device) =>
         rememberedSelectionNames.includes(normalizedPrinterName(device.deviceName)),
@@ -467,13 +474,16 @@ function createWindow() {
         rememberedSelectionNames = [];
         printerDiscoveryActive = false;
         bluetoothSelection = null;
+        selectedBluetoothDeviceId = remembered.deviceId;
         callback(remembered.deviceId); return;
       }
       mainWindow.webContents.send(
         "bluetooth-devices",
         [...uniqueDevices.values()].map((device) => ({
           id: device.deviceId,
-          name: normalizedPrinterName(device.deviceName) || "Unnamed BLE device",
+          name: typeof device.deviceName === "string" && device.deviceName.trim()
+            ? device.deviceName.trim()
+            : "Unnamed BLE device",
           supported: SUPPORTED_PRINTER_NAMES.has(
             normalizedPrinterName(device.deviceName),
           ),
@@ -481,6 +491,21 @@ function createWindow() {
       );
     },
   );
+  if (process.platform !== "darwin") {
+    mainWindow.webContents.session.setBluetoothPairingHandler((details, callback) => {
+      appendLog("info", `Bluetooth pairing requested (${details.pairingKind}) for ${details.deviceId}.`, "bluetooth.pairing");
+      if (details.deviceId !== selectedBluetoothDeviceId) {
+        callback({ confirmed: false });
+        return;
+      }
+      if (details.pairingKind === "providePin") {
+        appendLog("warn", "Bluetooth printer requested a PIN that cannot be provided automatically.", "bluetooth.pairing");
+        callback({ confirmed: false });
+        return;
+      }
+      callback({ confirmed: true });
+    });
+  }
 
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
   if (devServerUrl) mainWindow.loadURL(devServerUrl);
@@ -728,6 +753,7 @@ ipcMain.handle("render-image", async (_event, inputPath, options) => {
 
 ipcMain.handle("select-bluetooth-device", (_event, deviceId) => {
   clearTimeout(rememberedSelectionTimer); rememberedSelectionNames = []; printerDiscoveryActive = false;
+  selectedBluetoothDeviceId = deviceId;
   if (bluetoothSelection) bluetoothSelection(deviceId);
   bluetoothSelection = null;
 });
@@ -808,6 +834,11 @@ ipcMain.handle("clear-logs", () => {
   logEntries.splice(0, logEntries.length);
   if (logsWindow && !logsWindow.isDestroyed())
     logsWindow.webContents.send("logs-updated", logEntries);
+  return true;
+});
+ipcMain.handle("copy-text", (_event, value) => {
+  if (typeof value !== "string") return false;
+  clipboard.writeText(value);
   return true;
 });
 ipcMain.handle("get-log-options", () => logOptions);

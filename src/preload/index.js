@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld("desktop", {
   writeLog: (level, scope, message) => ipcRenderer.send("append-log", level, scope, message),
   getLogs: () => ipcRenderer.invoke("get-logs"),
   clearLogs: () => ipcRenderer.invoke("clear-logs"),
+  copyText: (value) => ipcRenderer.invoke("copy-text", value),
   onLogs: (callback) => ipcRenderer.on("logs-updated", (_event, logs) => callback(logs)),
   getLogOptions: () => ipcRenderer.invoke("get-log-options"),
   setLogOptions: (options) => ipcRenderer.invoke("set-log-options", options),

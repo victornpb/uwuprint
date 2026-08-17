@@ -72,6 +72,7 @@ export class BlePrinter {
     this.paused = false;
     this.manualDisconnect = false;
     this.connectionAttempt = 0;
+    this.connectionInProgress = false;
     this.state = {
       connected: false,
       message: "Disconnected",
@@ -124,7 +125,12 @@ export class BlePrinter {
     device.addEventListener("gattserverdisconnected", () =>
       this.handleDisconnect(),
     );
-    await this.connectDevice(connectionAttempt, device);
+    this.connectionInProgress = true;
+    try {
+      await this.connectDevice(connectionAttempt, device);
+    } finally {
+      this.connectionInProgress = false;
+    }
   }
 
   async connectRemembered(deviceNames, timeoutSeconds) {
@@ -144,21 +150,26 @@ export class BlePrinter {
     const server = await device.gatt.connect();
     ensureCurrent();
     this.log("info", `GATT connection opened (connected=${device.gatt.connected}); resolving service ${SERVICE_UUID}.`, "bluetooth.gatt");
-    try {
-      const announcedServices = await server.getPrimaryServices();
-      ensureCurrent();
-      this.log("info", `Peripheral announced ${announcedServices.length} primary service${announcedServices.length === 1 ? "" : "s"}: ${announcedServices.map((item) => item.uuid).join(", ") || "none"}.`, "bluetooth.gatt");
-    } catch (error) {
-      this.log("warn", `Could not enumerate announced primary services: ${error.stack || error.message}`, "bluetooth.gatt");
-    }
     let service;
-    try {
-      service = await server.getPrimaryService(SERVICE_UUID);
-      ensureCurrent();
-      this.log("info", `GATT service resolved: ${service.uuid}.`, "bluetooth.gatt");
-    } catch (error) {
-      this.log("error", `GATT service resolution failed for ${SERVICE_UUID}: ${error.stack || error.message}`, "bluetooth.gatt");
-      throw error;
+    for (let discoveryAttempt = 1; discoveryAttempt <= 3; discoveryAttempt++) {
+      try {
+        const activeServer = discoveryAttempt === 1
+          ? server
+          : await device.gatt.connect();
+        ensureCurrent();
+        service = await activeServer.getPrimaryService(SERVICE_UUID);
+        ensureCurrent();
+        this.log("info", `GATT service resolved: ${service.uuid}.`, "bluetooth.gatt");
+        break;
+      } catch (error) {
+        const disconnected = /GATT Server is disconnected|GATT.*disconnected/i.test(error?.message || "");
+        if (!disconnected || discoveryAttempt === 3) {
+          this.log("error", `GATT service resolution failed for ${SERVICE_UUID}: ${error.stack || error.message}`, "bluetooth.gatt");
+          throw error;
+        }
+        this.log("warn", `GATT service discovery lost the connection; retrying (${discoveryAttempt}/2).`, "bluetooth.gatt");
+        await delay(400);
+      }
     }
     try {
       this.writeCharacteristic = await service.getCharacteristic(WRITE_UUID);
@@ -203,6 +214,10 @@ export class BlePrinter {
 
   handleDisconnect() {
     this.writeCharacteristic = null;
+    if (this.connectionInProgress) {
+      this.log("warn", "Printer disconnected while establishing the GATT service; connection retry is active.");
+      return;
+    }
     const wasManual = this.manualDisconnect;
     this.update({
       connected: false,

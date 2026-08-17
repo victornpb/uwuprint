@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { useTheme } from './composables/useTheme.js';
 
-const state = reactive({ logs: [], showTimestamps: true, bluetoothLogging: false, levelFilter: 'all', scopeFilter: 'all', atBottom: true });
+const state = reactive({ logs: [], showTimestamps: true, bluetoothLogging: false, copyLabel: 'Copy', levelFilter: 'all', scopeFilter: 'all', atBottom: true });
 const logList = ref(null);
 useTheme();
 const levels = ['debug', 'log', 'info', 'warn', 'error'];
@@ -45,6 +45,24 @@ function handleCopy(event) {
 	].join('\t'));
 	event.clipboardData.setData('text/plain', columns.join('\n'));
 	event.preventDefault();
+}
+
+function formatLogs(entries) {
+	return entries.map((entry) => [
+		...(state.showTimestamps ? [entry.timestamp] : []),
+		entry.level,
+		entry.scope,
+		String(entry.message).replace(/\r?\n/g, '\\n').replace(/\t/g, '\\t'),
+	].join('\t')).join('\n');
+}
+
+async function copyLogs() {
+	if (!visibleLogs.value.length) return;
+	await window.desktop.copyText(formatLogs(visibleLogs.value));
+	state.copyLabel = 'Copied';
+	window.setTimeout(() => {
+		state.copyLabel = 'Copy';
+	}, 1500);
 }
 
 async function setBluetoothLogging(enabled) {
@@ -95,6 +113,7 @@ onMounted(async () => {
 				</select>
 				<button class="secondary" type="button" :disabled="!visibleLogs.length" @click="scrollToTop">Top</button>
 				<button class="secondary" type="button" :disabled="!visibleLogs.length" @click="scrollToBottom">Bottom</button>
+				<button class="secondary" type="button" :disabled="!visibleLogs.length" @click="copyLogs">{{ state.copyLabel }}</button>
 				<button class="secondary clear-logs" type="button" :disabled="!state.logs.length" @click="clearLogs">Clear</button>
 				<span v-if="state.logs.length">{{ visibleLogs.length }} / {{ state.logs.length }}</span>
 			</div>
