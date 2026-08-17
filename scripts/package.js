@@ -5,13 +5,18 @@ const path = require('node:path');
 
 const target = process.argv[2];
 const targets = {
-	mac: { builder: ['--mac'] },
+	mac: {
+		builder: ['--mac'],
+		output: 'mac'
+	},
 	win: {
 		builder: ['--win', '--x64'],
+		output: 'windows',
 		packages: ['@img/sharp-win32-x64@0.33.5'],
 	},
 	linux: {
 		builder: ['--linux', '--x64'],
+		output: 'linux',
 		packages: [
 			'@img/sharp-linux-x64@0.33.5',
 			'@img/sharp-libvips-linux-x64@1.0.4',
@@ -66,27 +71,22 @@ function installTargetDependencies(buildTarget) {
 	}
 }
 
-function removeUpdateArtifacts() {
-	const releaseDirectory = path.resolve('release');
-	if (!fs.existsSync(releaseDirectory)) {
-		return;
-	}
-
-	for (const file of fs.readdirSync(releaseDirectory)) {
-		if (!file.endsWith('.blockmap') && !/^latest.*\.yml$/.test(file)) {
-			continue;
-		}
-		fs.rmSync(path.join(releaseDirectory, file), { force: true });
-	}
+function prepareOutputDirectory(buildTarget) {
+	const outputDirectory = path.resolve('release', buildTarget.output);
+	fs.rmSync(outputDirectory, { recursive: true, force: true });
+	return outputDirectory;
 }
 
 run(npmCommand, ['run', 'build']);
 
-const buildTargets = target === 'all' ? ['mac', 'linux', 'win'] : [target];
+const buildTargets = target === 'all' ? ['mac', 'win', 'linux'] : [target];
 for (const buildTargetName of buildTargets) {
 	const buildTarget = targets[buildTargetName];
+	const outputDirectory = prepareOutputDirectory(buildTarget);
 	installTargetDependencies(buildTarget);
-	run(builderCommand, [...buildTarget.builder, '--publish=never']);
+	run(builderCommand, [
+		...buildTarget.builder,
+		`--config.directories.output=${outputDirectory}`,
+		'--publish=never',
+	]);
 }
-
-removeUpdateArtifacts();

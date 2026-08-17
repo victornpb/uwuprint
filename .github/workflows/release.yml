@@ -22,10 +22,13 @@ jobs:
       matrix:
         include:
           - target: mac
+            output: mac
             os: macos-14
           - target: win
+            output: windows
             os: windows-2022
           - target: linux
+            output: linux
             os: ubuntu-22.04
 
     steps:
@@ -54,11 +57,11 @@ jobs:
         with:
           name: binaries-${{ matrix.target }}
           path: |
-            release/*.dmg
-            release/*.zip
-            release/*.exe
-            release/*.AppImage
-            release/*.deb
+            release/${{ matrix.output }}/*.dmg
+            release/${{ matrix.output }}/*.zip
+            release/${{ matrix.output }}/*.exe
+            release/${{ matrix.output }}/*.AppImage
+            release/${{ matrix.output }}/*.deb
           if-no-files-found: error
 
   publish:
